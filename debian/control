@@ -1,0 +1,23 @@
+Source: udotool
+Section: utils
+Priority: optional
+Maintainer: Alec Kojaev <alec.kojaev@gmail.com>
+Rules-Requires-Root: no
+Build-Depends:
+ debhelper-compat (= 10),
+ linux-libc-dev (>= 4.5),
+ pandoc,
+Standards-Version: 4.6.2
+Homepage: https://gitlab.com/oldnomad/udotool
+Vcs-Browser: https://gitlab.com/oldnomad/udotool
+Vcs-Git: https://gitlab.com/oldnomad/udotool.git
+
+Package: udotool
+Architecture: any
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends},
+Description: simulate (generate) input events
+ udotool lets you programmatically (or manually) simulate input
+ activity, such as keyboard, mouse, gamepad, etc.
+ It does this using Linux kernel uinput framework.
