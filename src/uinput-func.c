@@ -256,36 +256,37 @@ int uinput_keyop(int key, int value, int sync) {
     return 0;
 }
 
-int uinput_relop(int axis, int value, int sync) {
+int uinput_relop(int axis, double value, int sync) {
     if (uinput_open() < 0)
         return -1;
-    log_message(1, "%sUINPUT: rel 0x%02X value %d%s",
+    log_message(1, "%sUINPUT: rel 0x%02X value %lf%s",
             CFG_DRY_RUN_PREFIX,
             (unsigned)axis, value, sync ? " (sync)" : "");
     if (CFG_DRY_RUN)
         return 0;
     for (int i = 0; UINPUT_HIRES_AXIS[i].lo_axis >= 0; i++)
         if (axis == UINPUT_HIRES_AXIS[i].lo_axis) {
-            if (uinput_emit(EV_REL, axis, value / UINPUT_HIRES_AXIS[i].divisor) < 0)
+            if (uinput_emit(EV_REL, axis, (int)value) < 0)
                 return -1;
-            axis = UINPUT_HIRES_AXIS[i].hi_axis;
+            value *= UINPUT_HIRES_AXIS[i].divisor;
+            axis   = UINPUT_HIRES_AXIS[i].hi_axis;
         }
-    if (uinput_emit(EV_REL, axis, value) < 0)
+    if (uinput_emit(EV_REL, axis, (int)value) < 0)
         return -1;
     if (sync && uinput_emit(EV_SYN, SYN_REPORT, 0) < 0)
         return -1;
     return 0;
 }
 
-int uinput_absop(int axis, int value, int sync) {
+int uinput_absop(int axis, double value, int sync) {
     if (uinput_open() < 0)
         return -1;
-    log_message(1, "%sUINPUT: abs 0x%02X value %d%s",
+    log_message(1, "%sUINPUT: abs 0x%02X value %lf%s",
             CFG_DRY_RUN_PREFIX,
             (unsigned)axis, value, sync ? " (sync)" : "");
     if (CFG_DRY_RUN)
         return 0;
-    if (uinput_emit(EV_ABS, axis, value) < 0)
+    if (uinput_emit(EV_ABS, axis, (int)(UINPUT_ABS_MAXVALUE * value)) < 0)
         return -1;
     if (sync && uinput_emit(EV_SYN, SYN_REPORT, 0) < 0)
         return -1;

@@ -60,11 +60,8 @@ Unless specified otherwise:
 - Command and option names are case-sensitive.
 - Axis and key names are case-insensitive.
 - Delays are specified in seconds and parts of seconds.
-- All other numeric parameters are integer.
-
-**NOTE**: Mouse wheel axes (**REL_WHEEL** and **REL_HWHEEL**) are
-handled as high-resolution, so their values should be specified in
-1/120 of a wheel notch.
+- Loop and repeat counters are integer.
+- For other values see section **VALUE UNITS** below.
 
 ## Generic commands
 
@@ -174,16 +171,17 @@ character **B**, backslash character.
 
 Values for various axes are specified in abstract "units":
 
-- Movement in major relative axes (**REL_X**, **REL_Y**, **REL_Z**)
-  is usually interpreted in pixels.
-- Wheel movement is specified in **1/120** of a wheel notch.
-  That is, value **+120** means scrolling the wheel by one notch.
-  Note that, depending on your software, values below one notch
-  might be not recognized.
-- Position in absolute axes is specified in **1/1000000** (one
-  millionth) of maximum range. For example, if your screen has
-  size **1920x1080** pixels (FHD), then position **250000 333333**
-  is at pixel **(480,360)**.
+- Relative axes are usually integer:
+  - Movement in major relative axes (**REL_X**, **REL_Y**, **REL_Z**)
+    is usually interpreted in pixels.
+  - Wheel movement (**REL_WHEEL** and **REL_HWHEEL**) is in notches.
+    It can be fractional, with maximum resolution of **1/120** of a notch.
+- Position in absolute axes is specified percents (**0.0** to **100.0**)
+  of a maximum range. For example, if your screen has size **1920x1080**
+  pixels (FHD), then position **0.25 0.333333** is at pixel **(480,360)**.
+  - For axes that have no natural range (for example, **ABS_PROFILE**),
+    maximum range is **1000000** (one million), so to get axis value
+    **42** you have to specify it as **0.000042**.
 
 # AXIS NAMES
 
@@ -199,6 +197,17 @@ Following axis names are supported at the moment:
   - **REL_DIAL**: jog wheel on some devices.
   - **REL_MISC**: additional axis on some devices.
   - **REL_WHEEL**, **REL_HWHEEL**: mouse wheel and horizontal wheel axes.
+- Absolute axes (touchscreens, tablets/digitizers, gamepads, joysticks, and similar):
+  - **ABS_X**, **ABS_Y**, **ABS_Z**: main axes used by most devices.
+  - **ABS_RX**, **ABS_RY**, **ABS_RZ**: additional axes (for example, rotation)
+    used by some devices.
+  - **ABS_THROTTLE**, **ABS_RUDDER**, **ABS_WHEEL**, **ABS_GAS**, **ABS_BRAKE**:
+    additional axes used by some devices.
+  - **ABS_HAT*n*X**, **ABS_HAT*n*Y** for *n* from 0 to 3: additional axes for
+    secondary controls.
+  - **ABS_PRESSURE**, **ABS_DISTANCE**, **ABS_TILT_X**, **ABS_TILT_Y**, **ABS_TOOL_WIDTH**:
+    additional axes used by some digitizers.
+  - **ABS_VOLUME**, **ABS_PROFILE**, **ABS_MISC**: special axes.
 
 If you have the device that you want to emulate, you can use **evtest**(1)
 to determine which axes it uses.

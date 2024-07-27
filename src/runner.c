@@ -100,6 +100,32 @@ static int parse_integer(const struct udotool_verb_info *info, const char *text,
     return 0;
 }
 
+static int parse_abs_value(const struct udotool_verb_info *info, const char *text, double *pval) {
+    double value = 0;
+    if (parse_double(info, text, &value) < 0)
+        return -1;
+    value /= 100.0;
+    if (value < 0 || value > 1.0) {
+        log_message(-1, "%s: value is out of range in '%s'", info->verb, text);
+        return -1;
+    }
+    *pval = value;
+    return 0;
+}
+
+static int parse_rel_value(const struct udotool_verb_info *info, const char *text, double *pval) {
+    double value = 0;
+    if (parse_double(info, text, &value) < 0)
+        return -1;
+    if (value < INT_MIN || value > INT_MAX) {
+        log_message(-1, "%s: value is out of range in '%s'", info->verb, text);
+        return -1;
+    }
+    *pval = value;
+    return 0;
+}
+
+
 int run_verb(const struct udotool_verb_info *info, struct udotool_exec_context *ctxt,
              int argc, const char *const argv[]) {
     int repeat = 1, alt = 0;
@@ -186,7 +212,8 @@ int run_verb(const struct udotool_verb_info *info, struct udotool_exec_context *
             break;
         }
     }
-    int key, pos;
+    int key;
+    double value;
     switch (info->cmd) {
     case CMD_HELP:
         return cmd_help(argc, argv);
@@ -257,15 +284,18 @@ int run_verb(const struct udotool_verb_info *info, struct udotool_exec_context *
                     return -1;
                 continue;
             }
-            int axis, abs_flag = 0, value;
+            int axis, abs_flag = 0;
             if ((axis = uinput_find_axis(info->verb, obj_name, UDOTOOL_AXIS_BOTH, &abs_flag)) < 0)
                 return -1;
-            if (parse_integer(info, sep, &value) < 0)
-                return -1;
+            value = 0;
             if (abs_flag) {
+                if (parse_abs_value(info, sep, &value) < 0)
+                    return -1;
                 if (uinput_absop(axis, value, 0) < 0)
                     return -1;
             } else {
+                if (parse_rel_value(info, sep, &value) < 0)
+                    return -1;
                 if (uinput_relop(axis, value, 0) < 0)
                     return -1;
             }
@@ -309,24 +339,24 @@ int run_verb(const struct udotool_verb_info *info, struct udotool_exec_context *
         return 0;
     case CMD_MOVE:
         for (int i = 0; i < argc && i < 3; i++) {
-            pos = 0;
-            if (parse_integer(info, argv[i], &pos) < 0)
+            value = 0;
+            if (parse_rel_value(info, argv[i], &value) < 0)
                 return -1;
-            if (uinput_relop(UINPUT_MAIN_REL_AXES[alt][i], pos, 0) < 0)
+            if (uinput_relop(UINPUT_MAIN_REL_AXES[alt][i], value, 0) < 0)
                 return -1;
         }
         return uinput_sync();
     case CMD_WHEEL:
-        pos = 0;
-        if (parse_integer(info, argv[0], &pos) < 0)
+        value = 0;
+        if (parse_rel_value(info, argv[0], &value) < 0)
             return -1;
-        return uinput_relop(UINPUT_MAIN_WHEEL_AXES[alt], pos, 1);
+        return uinput_relop(UINPUT_MAIN_WHEEL_AXES[alt], value, 1);
     case CMD_POSITION:
         for (int i = 0; i < argc && i < 3; i++) {
-            pos = 0;
-            if (parse_integer(info, argv[i], &pos) < 0)
+            value = 0;
+            if (parse_abs_value(info, argv[i], &value) < 0)
                 return -1;
-            if (uinput_absop(UINPUT_MAIN_ABS_AXES[alt][i], pos, 0) < 0)
+            if (uinput_absop(UINPUT_MAIN_ABS_AXES[alt][i], value, 0) < 0)
                 return -1;
         }
         return uinput_sync();

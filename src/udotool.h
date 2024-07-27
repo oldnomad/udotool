@@ -5,7 +5,7 @@
  * Copyright (c) 2024 Alec Kojaev
  */
 #define PROGRAM_NAME      "udotool"
-#define PROGRAM_VERSION   "1.0"
+#define PROGRAM_VERSION   "1.1"
 #define PROGRAM_COPYRIGHT "(c) 2024 Alec Kojaev"
 
 #define MAX_SCRIPT_LINE        4096 // Maximum line length for scripts

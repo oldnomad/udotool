@@ -46,5 +46,5 @@ int uinput_open(void);
 void uinput_close(void);
 int uinput_sync(void);
 int uinput_keyop(int key, int value, int sync);
-int uinput_relop(int axis, int value, int sync);
-int uinput_absop(int axis, int value, int sync);
+int uinput_relop(int axis, double value, int sync);
+int uinput_absop(int axis, double value, int sync);

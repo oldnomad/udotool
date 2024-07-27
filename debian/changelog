@@ -1,3 +1,11 @@
+udotool (1.1) unstable; urgency=medium
+
+  * [INCOMPATIBLE CHANGE] Absolute positions are now in percents.
+  * [INCOMPATIBLE CHANGE] Wheel positions are now in notches and fractions
+    of a notch.
+
+ -- Alec Kojaev <alec.kojaev@gmail.com>  Sat, 27 Jul 2024 18:47:07 +0300
+
 udotool (1.0) unstable; urgency=medium
 
   * Initial release.

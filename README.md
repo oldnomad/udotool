@@ -15,9 +15,9 @@ input, so it can be used to create input-emulating scripts:
 #!/usr/bin/udotool -i
 exec echo "Move mouse around and double-click"
 sleep 5
-move -1000 -1000
+position 10 12.5
 loop 20
-    move +10 +10
+    move +16 +16
     key -repeat 2 BTN_LEFT
 endloop
 ```
