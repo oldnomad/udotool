@@ -28,8 +28,7 @@ Build-time dependencies are:
 
 - `gcc(1)`, `glibc(7)`, `make(1)`, `install(1)`, and some common POSIX commands.
 - `pandoc(1)` is needed for building the manpage.
-- `debuild(1)` (package `devscripts`) and package `debhelper` are needed
-  to build a Debian package.
+- Package `debhelper` is needed to build a Debian package.
 - Linux kernel headers (package `linux-libc-dev` in Debian).
 
 Building just the binary and the manpage, and installing them:
