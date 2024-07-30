@@ -59,7 +59,7 @@ Unless specified otherwise:
 
 - Command and option names are case-sensitive.
 - Axis and key names are case-insensitive.
-- Delays are specified in seconds and parts of seconds.
+- Time is specified in seconds and parts of seconds.
 - Loop and repeat counters are integer.
 - For other values see section **VALUE UNITS** below.
 
@@ -71,10 +71,10 @@ Unless specified otherwise:
  is **86400** (1 day).
 
 **exec** _command_ [_arg_...]
-:   Execute specified command. If command is does not include slashes,
+:   Execute specified command. If _command_ is does not include slashes,
  it will be searched in PATH. Environment for the command will
- include environment variable **UDOTOOL_SYSNAME**, which includes
- virtual device name under **/sys/devices/virtual/input/**.
+ include environment variable **$UDOTOOL_SYSNAME**, which contains
+ virtual device directory name under **/sys/devices/virtual/input/**.
 
 **script** [{_file_ | **-**}]
 :   Execute commands from specified file. If no file name is given or
@@ -131,15 +131,18 @@ Unless specified otherwise:
 ## Low-level input simulation commands
 
 **open**
-:   Ensure that input device is open and initialized.
+:   Ensure that the input device is open and initialized.
  If this command was not specified, initialization happens
- before the first emulation command.
+ before the first emulation command. Use this command if you have
+ an **exec** before the first emulation command, and you want the
+ device to be present when the external command is executed.
 
 **input** {*axis***=***value* | **KEYDOWN=***key* | **KEYUP=***key*}...
 :   Emulate a complex input message. This command allows
  you emulate a complex message that includes data for
- several axes and keys/buttons. See also sections **VALUE UNITS**,
- **AXIS NAMES** and **KEY NAMES** below.
+ several axes and keys/buttons. This may be needed if you want to
+ emulate, for example, some complex gamepad combo. See also sections
+ **VALUE UNITS**, **AXIS NAMES** and **KEY NAMES** below.
 
 # SCRIPTS
 
@@ -152,6 +155,11 @@ can be also made executable with a shebang syntax:
 exec echo "This script emulates 10 left mouse button clicks"
 key -repeat 10 BTN_LEFT
 ```
+
+**NOTE**: Since some systems don't properly split options in shebang
+line, to combine several options you can use only short options:
+**#!/usr/bin/udotool -vi** will work, but **#!/usr/bin/udotool -v -i**
+won't.
 
 In scripts, each command should be in a separate line. There is no
 syntax for breaking a command into several lines.
