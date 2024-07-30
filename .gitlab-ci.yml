@@ -1,0 +1,38 @@
+image: debian:stable-slim
+
+stages:
+  - build
+  - package
+
+.build-common:
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq build-essential debhelper pandoc devscripts linux-libc-dev
+    - gcc --version
+
+test-build:
+  stage: build
+  extends: .build-common
+  script:
+    - make
+  except:
+    - tags
+
+debian-packages:
+  stage: package
+  extends: .build-common
+  script:
+    - make package
+    - mkdir build
+    - mv ../udotool*.deb build/
+    - mv ../udotool*.dsc build/
+    - mv ../udotool*.changes build/
+    - mv ../udotool*.buildinfo build/
+    - echo '# Changes:' >build/release-notes.md
+    - dpkg-parsechangelog -S Changes | tail -n +3 >>build/release-notes.md
+  only:
+    - tags
+  artifacts:
+    name: "udotool-$CI_COMMIT_TAG"
+    paths:
+      - build/*
