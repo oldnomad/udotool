@@ -87,22 +87,25 @@ Unless specified otherwise:
  **-axis** and **-key** will make **help** print lists of known
  axes and keys, correspondingly.
 
-**loop** _num_
+**loop** [**-time** _seconds_] [_num_]
 :   Execute commands between **loop** and corresponding **endloop**
- _num_ times. Loops may be embedded, but maximum stack depth is
- limited.
+ no more than _num_ times. If option **-time** is specified, the
+ loop will be repeated for no more than specified time. Loops may
+ be embedded, but maximum stack depth is limited.
 
 **endloop**
 :   End corresponding **loop** block.
 
 ## Input emulation commands
 
-**key** [**-repeat** _num_] [**-delay** _seconds_] _key_...
+**key** [**-repeat** _num_] [**-time** _seconds_] [**-delay** _seconds_] _key_...
 :   Emulate keys/buttons being pressed down (in order) and then released
  (in reverse order). If option **-repeat** is specified, the whole
- sequence will be repeated _num_ times. If **-delay** option is specified,
- its value will be used as a delay between each repetition (default is
- **0.05**, that is, 50 milliseconds). See also section **KEY NAMES** below.
+ sequence will be repeated no more than _num_ times. If option **-time**
+ is specified, the whole option will be repeated for no more than
+ specified time. If **-delay** option is specified, its value will be used
+ as a delay between each repetition (default is **0.05**, that is,
+ 50 milliseconds). See also section **KEY NAMES** below.
 
 **keydown** _key_...
 :   Emulate key/button being pressed down. If several keys are specified,

@@ -1,3 +1,9 @@
+udotool (1.2) unstable; urgency=medium
+
+  * NEW: Timed loops and timed repeats.
+
+ -- Alec Kojaev <alec.kojaev@gmail.com>  Wed, 31 Jul 2024 20:17:46 +0300
+
 udotool (1.1) unstable; urgency=medium
 
   * [INCOMPATIBLE CHANGE] Absolute positions are now in percents.

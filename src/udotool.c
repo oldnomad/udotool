@@ -11,6 +11,7 @@
 
 #include "udotool.h"
 #include "uinput-func.h"
+#include "config.h"
 
 #define VERSION_STRING PROGRAM_NAME " " PROGRAM_VERSION " " PROGRAM_COPYRIGHT
 
@@ -106,7 +107,7 @@ int main(int argc, char *const argv[]) {
     }
 
     if (CFG_DRY_RUN)
-        log_message(-1, "%sno UINPUT actions will be performed\n", CFG_DRY_RUN_PREFIX);
+        log_message(0, "%sno UINPUT actions will be performed\n", CFG_DRY_RUN_PREFIX);
 
     int ret;
     if (input_file != NULL) {

@@ -1,5 +1,7 @@
 INSTALL   = /usr/bin/install
 PANDOC    = /usr/bin/pandoc
+GIT       = /usr/bin/git
+ENVSUBST  = /usr/bin/envsubst
 
 QUIRKS    = LIBINPUT
 
@@ -10,7 +12,7 @@ CFLAGS   += -D_GNU_SOURCE \
 CFLAGS   += $(foreach quirk,$(QUIRKS),-DUDOTOOL_$(quirk)_QUIRK)
 
 SRC_FILES = $(wildcard *.c)
-HDR_FILES = $(wildcard *.h)
+HDR_FILES = $(wildcard *.h) config.h
 OBJ_FILES = $(patsubst %.c,%.o,$(SRC_FILES))
 EXE_FILE  = udotool
 MAN_FILE  = udotool.man
@@ -21,6 +23,9 @@ $(EXE_FILE): $(OBJ_FILES)
 	$(CC) $(LDFLAGS) $(OBJ_FILES) -o $@
 
 $(OBJ_FILES): $(HDR_FILES)
+
+config.h: config.h.template
+	GIT_VERSION=`$(GIT) describe --tags --match 'v[0-9]*' --always --dirty` $(ENVSUBST) <$< >$@
 
 .SUFFIXES: .md .man
 
@@ -37,3 +42,6 @@ install: $(EXE_FILE) $(MAN_FILE)
 
 clean:
 	-$(RM) *.o $(EXE_FILE) $(MAN_FILE)
+
+distclean: clean
+	-$(RM) config.h

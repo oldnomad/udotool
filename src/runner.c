@@ -4,15 +4,54 @@
  *
  * Copyright (c) 2024 Alec Kojaev
  */
+#include <errno.h>
 #include <limits.h>
+#include <spawn.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
+#include <sys/wait.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "udotool.h"
-#include "cmd.h"
 #include "runner.h"
 #include "uinput-func.h"
+
+enum {
+    CMD_HELP = 0,
+    // Control transferring commands
+    CMD_LOOP = 0x100,
+    CMD_ENDLOOP,
+    CMD_SCRIPT,
+    // Generic commands
+    CMD_SLEEP = 0x200,
+    CMD_EXEC,
+    // UINPUT commands
+    CMD_OPEN = 0x300,
+    CMD_INPUT,
+    // High-level UINPUT commands
+    CMD_KEYDOWN,
+    CMD_KEYUP,
+    CMD_KEY,
+    CMD_MOVE,
+    CMD_WHEEL,
+    CMD_POSITION,
+};
+
+enum {
+    CMD_OPT_REPEAT = 0,
+    CMD_OPT_TIME,
+    CMD_OPT_DELAY,
+    CMD_OPT_R,
+    CMD_OPT_H,
+};
+
+#define CMD_OPTMASK(v) (1u << (v))
+
+#define NSEC_PER_SEC   1.0e9 // Nanoseconds per second
+#define USEC_PER_SEC   1.0e6 // Microseconds per second
 
 static const struct udotool_verb_info KNOWN_VERBS[] = {
     { "keydown", CMD_KEYDOWN, 1, -1, 0,
@@ -21,8 +60,8 @@ static const struct udotool_verb_info KNOWN_VERBS[] = {
     { "keyup", CMD_KEYUP, 1, -1, 0,
       "<key>...",
       "Release specified keys." },
-    { "key", CMD_KEY, 1, -1, CMD_OPTMASK(CMD_OPT_REPEAT)|CMD_OPTMASK(CMD_OPT_DELAY),
-      "[-repeat <N>] [-delay <seconds>] <key>...",
+    { "key", CMD_KEY, 1, -1, CMD_OPTMASK(CMD_OPT_REPEAT)|CMD_OPTMASK(CMD_OPT_TIME)|CMD_OPTMASK(CMD_OPT_DELAY),
+      "[-repeat <N>] [-time <seconds>] [-delay <seconds>] <key>...",
       "Press down and release specified keys." },
     { "move", CMD_MOVE, 1, 3, CMD_OPTMASK(CMD_OPT_R),
       "[-r] <delta-x> [<delta-y> [<delta-z>]]",
@@ -39,8 +78,8 @@ static const struct udotool_verb_info KNOWN_VERBS[] = {
     { "input", CMD_INPUT, 1, -1, 0,
       "<axis>=<value>...",
       "Generate a packet of input values." },
-    { "loop", CMD_LOOP, 1, 1, 0,
-      "<N>",
+    { "loop", CMD_LOOP, 0, 1, CMD_OPTMASK(CMD_OPT_TIME),
+      "[-time <seconds>] [<N>]",
       "Repeat following commands until nearest 'endloop'." },
     { "endloop", CMD_ENDLOOP, 0, 0, 0,
       "",
@@ -61,6 +100,7 @@ static const struct udotool_verb_info KNOWN_VERBS[] = {
 };
 static const struct udotool_obj_id OPTLIST[] = {
     { "repeat", CMD_OPT_REPEAT },
+    { "time",   CMD_OPT_TIME   },
     { "delay",  CMD_OPT_DELAY  },
     { "r",      CMD_OPT_R      },
     { "h",      CMD_OPT_H      },
@@ -69,6 +109,10 @@ static const struct udotool_obj_id OPTLIST[] = {
 
 static const char  AXIS_KEYDOWN[] = "KEYDOWN";
 static const char  AXIS_KEYUP[]   = "KEYUP";
+
+static int cmd_help(int argc, const char *const argv[]);
+static int cmd_exec(int argc, const char *const argv[]);
+static int cmd_sleep(double delay, int internal);
 
 const struct udotool_verb_info *run_find_verb(const char *verb) {
     for (const struct udotool_verb_info *info = KNOWN_VERBS; info->verb != NULL; info++)
@@ -125,11 +169,27 @@ static int parse_rel_value(const struct udotool_verb_info *info, const char *tex
     return 0;
 }
 
+static int calc_rtime(const struct udotool_verb_info *info, double rtime, struct timeval *pval) {
+    if (rtime == 0) {
+        timerclear(pval);
+        return 0;
+    }
+    if (gettimeofday(pval, NULL) < 0) {
+        log_message(-1, "%s: cannot get current time: %s", info->verb, strerror(errno));
+        return -1;
+    }
+    struct timeval tval;
+    timerclear(&tval);
+    tval.tv_sec = (time_t)rtime;
+    tval.tv_usec = (suseconds_t)(USEC_PER_SEC * (rtime - tval.tv_sec));
+    timeradd(pval, &tval, pval);
+    return 0;
+}
 
 int run_verb(const struct udotool_verb_info *info, struct udotool_exec_context *ctxt,
              int argc, const char *const argv[]) {
-    int repeat = 1, alt = 0;
-    double delay = DEFAULT_SLEEP_SEC;
+    int repeat = 0, alt = 0;
+    double delay = DEFAULT_SLEEP_SEC, rtime = 0;
     int arg0;
     for (arg0 = 0; arg0 < argc && argv[arg0][0] == '-'; arg0++) {
         int optval = -1;
@@ -151,6 +211,16 @@ int run_verb(const struct udotool_verb_info *info, struct udotool_exec_context *
                 return -1;
             if (repeat <= 0) {
                 log_message(-1, "%s: repeat value is out of range: %s", info->verb, argv[arg0]);
+                return -1;
+            }
+            break;
+        case CMD_OPT_TIME:
+            if ((arg0 + 1) >= argc)
+                goto ON_NO_OPTVAL;
+            if (parse_double(info, argv[++arg0], &rtime) < 0)
+                return -1;
+            if (rtime <= MIN_SLEEP_SEC || rtime > MAX_SLEEP_SEC) {
+                log_message(-1, "%s: run time value is out of range: %s", info->verb, argv[arg0]);
                 return -1;
             }
             break;
@@ -214,28 +284,50 @@ int run_verb(const struct udotool_verb_info *info, struct udotool_exec_context *
     }
     int key;
     double value;
+    struct timeval tval;
     switch (info->cmd) {
     case CMD_HELP:
         return cmd_help(argc, argv);
     case CMD_LOOP:
         // run_mode == 1, depth < (MAX_LOOP_DEPTH - 1)
-        if (parse_integer(info, argv[0], &repeat) < 0)
+        if (argc > 0) {
+            if (parse_integer(info, argv[0], &repeat) < 0)
+                return -1;
+            if (repeat <= 0) {
+                log_message(-1, "%s: loop counter is out of range: %s", info->verb, argv[0]);
+                return -1;
+            }
+        }
+        if (calc_rtime(info, rtime, &tval) < 0)
             return -1;
-        if (repeat <= 0) {
-            log_message(-1, "%s: loop counter is out of range: %s", info->verb, argv[0]);
+        if (!timerisset(&tval) && repeat == 0) {
+            log_message(-1, "%s: either counter or time should be specified", info->verb);
             return -1;
         }
-        ctxt->stack[ctxt->depth++] = (struct udotool_loop){ .count = repeat, .backref = ctxt->ref };
+        if (repeat == 0)
+            repeat = INT_MAX;
+        log_message(1, "%s: counter = %d, run time = %lu.%06lu", info->verb,
+            repeat, (unsigned long)tval.tv_sec, (unsigned long)tval.tv_usec);
+        ctxt->stack[ctxt->depth++] = (struct udotool_loop){ .count = repeat, .rtime = tval, .backref = ctxt->ref };
         return 0;
     case CMD_ENDLOOP:
         // run_mode == 1, 0 < depth < MAX_LOOP_DEPTH
         {
             struct udotool_loop *loop = &ctxt->stack[ctxt->depth - 1];
             loop->count--;
-            if (loop->count <= 0)
+            if (gettimeofday(&tval, NULL) < 0) {
+                log_message(-1, "%s: cannot get current time: %s", info->verb, strerror(errno));
+                return -1;
+            }
+            if (loop->count <= 0 || (timerisset(&loop->rtime) && !timercmp(&loop->rtime, &tval, >))) {
+                log_message(1, "%s: loop ended, counter = %d, current time = %lu.%06lu", info->verb,
+                    loop->count, (unsigned long)tval.tv_sec, (unsigned long)tval.tv_usec);
                 ctxt->depth--;
-            else
-                ctxt->ref = loop->backref;
+                return 0;
+            }
+            log_message(1, "%s: continue, counter = %d, current time = %lu.%06lu", info->verb,
+                loop->count, (unsigned long)tval.tv_sec, (unsigned long)tval.tv_usec);
+            ctxt->ref = loop->backref;
         }
         return 0;
     case CMD_SCRIPT:
@@ -320,6 +412,14 @@ int run_verb(const struct udotool_verb_info *info, struct udotool_exec_context *
         }
         return 0;
     case CMD_KEY:
+        if (rtime != 0) {
+            double maxcnt = rtime / delay;
+            if (repeat == 0 || maxcnt < repeat)
+                repeat = (int)maxcnt;
+        }
+        if (repeat == 0)
+            repeat = 1;
+        log_message(1, "%s: counter = %d", info->verb, repeat);
         for (int cnt = 0; cnt < repeat; cnt++) {
             for (int i = 0; i < argc; i++) {
                 if ((key = uinput_find_key(info->verb, argv[i])) < 0)
@@ -450,7 +550,7 @@ static void print_verb_help(const struct udotool_verb_info *info) {
     printf("%s %s\n    %s\n", info->verb, info->usage, info->description);
 }
 
-int cmd_help(int argc, const char *const argv[]) {
+static int cmd_help(int argc, const char *const argv[]) {
     if (argc <= 0 || argv == NULL) {
         for (const struct udotool_verb_info *info = KNOWN_VERBS; info->verb != NULL; info++)
             print_verb_help(info);
@@ -478,4 +578,36 @@ int cmd_help(int argc, const char *const argv[]) {
             print_verb_help(info);
     }
     return 0;
+}
+
+static int cmd_sleep(double delay, int internal) {
+    struct timespec tval;
+    memset(&tval, 0, sizeof(tval));
+    tval.tv_sec = (time_t)delay;
+    tval.tv_nsec = (long)(NSEC_PER_SEC * (delay - tval.tv_sec));
+    log_message(internal ? 2 : 1, "sleep: sleeping for %ld seconds and %ld nanoseconds", (long)tval.tv_sec, tval.tv_nsec);
+    if (nanosleep(&tval, NULL) < 0) {
+        log_message(-1, "sleep: error while sleeping: %s", strerror(errno));
+        return -1;
+    }
+    return 0;
+}
+
+static int cmd_exec(int argc, const char *const argv[]) {
+    (void)argc;
+    pid_t pid;
+    const char *command = argv[0];
+    int err, status;
+    log_message(1, "exec: executing command '%s'", command);
+    if ((err = posix_spawnp(&pid, command, NULL, NULL, (char *const*)argv, environ)) != 0) {
+        log_message(-1, "exec: cannot execute command '%s': %s", command, strerror(err));
+        return -1;
+    }
+    log_message(1, "exec: started command '%s' at PID %d", command, pid);
+    if (waitpid(pid, &status, 0) < 0) {
+        log_message(-1, "exec: error waiting for command '%s' PID %d", command, pid);
+        return -1;
+    }
+    log_message(1, "exec: command '%s' at PID %d finished with status %d", command, pid, status);
+    return status == 0 ? 0 : -1;
 }

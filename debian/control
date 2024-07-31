@@ -7,6 +7,8 @@ Build-Depends:
  debhelper-compat (= 10),
  linux-libc-dev (>= 4.5),
  pandoc,
+ git,
+ gettext-base,
 Standards-Version: 4.6.2
 Homepage: https://gitlab.com/oldnomad/udotool
 Vcs-Browser: https://gitlab.com/oldnomad/udotool

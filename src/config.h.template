@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+/**
+ * Package name & version
+ *
+ * Copyright (c) 2024 Alec Kojaev
+ */
+#define PROGRAM_NAME      "udotool"
+#define PROGRAM_VERSION   "${GIT_VERSION}"
+#define PROGRAM_COPYRIGHT "(c) 2024 Alec Kojaev"

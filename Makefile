@@ -18,5 +18,6 @@ install:
 clean:
 	$(MAKE) -C src clean
 
-distclean: clean
+distclean:
+	$(MAKE) -C src distclean
 	-$(DH_CLEAN)

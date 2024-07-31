@@ -23,6 +23,8 @@ struct udotool_cmd {
 
 struct udotool_loop {
     int         count;
+    struct timeval
+                rtime;
     size_t      backref;
 };
 

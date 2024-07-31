@@ -173,7 +173,7 @@ static int uinput_setup(int fd) {
 int uinput_open(void) {
     if (UINPUT_FD >= 0)
         return 0;
-    log_message(1, "%sUINPUT: open", CFG_DRY_RUN_PREFIX);
+    log_message(2, "%sUINPUT: open", CFG_DRY_RUN_PREFIX);
     if (CFG_DRY_RUN) {
         UINPUT_FD  = +1000;
         return 0;
@@ -233,7 +233,7 @@ static int uinput_emit(int type, int code, int value) {
 int uinput_sync(void) {
     if (uinput_open() < 0)
         return -1;
-    log_message(1, "%sUINPUT: sync", CFG_DRY_RUN_PREFIX);
+    log_message(2, "%sUINPUT: sync", CFG_DRY_RUN_PREFIX);
     if (CFG_DRY_RUN)
         return 0;
     return uinput_emit(EV_SYN, SYN_REPORT, 0);
@@ -244,7 +244,7 @@ int uinput_keyop(int key, int value, int sync) {
         return -1;
     if (key < 0)
         key = BTN_LEFT;
-    log_message(1, "%sUINPUT: key%s 0x%03X%s",
+    log_message(2, "%sUINPUT: key%s 0x%03X%s",
             CFG_DRY_RUN_PREFIX,
             value ? "down" : "up", (unsigned)key, sync ? " (sync)" : "");
     if (CFG_DRY_RUN)
@@ -259,7 +259,7 @@ int uinput_keyop(int key, int value, int sync) {
 int uinput_relop(int axis, double value, int sync) {
     if (uinput_open() < 0)
         return -1;
-    log_message(1, "%sUINPUT: rel 0x%02X value %lf%s",
+    log_message(2, "%sUINPUT: rel 0x%02X value %lf%s",
             CFG_DRY_RUN_PREFIX,
             (unsigned)axis, value, sync ? " (sync)" : "");
     if (CFG_DRY_RUN)
@@ -281,7 +281,7 @@ int uinput_relop(int axis, double value, int sync) {
 int uinput_absop(int axis, double value, int sync) {
     if (uinput_open() < 0)
         return -1;
-    log_message(1, "%sUINPUT: abs 0x%02X value %lf%s",
+    log_message(2, "%sUINPUT: abs 0x%02X value %lf%s",
             CFG_DRY_RUN_PREFIX,
             (unsigned)axis, value, sync ? " (sync)" : "");
     if (CFG_DRY_RUN)
