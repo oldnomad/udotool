@@ -1,7 +1,7 @@
 #!./udotool -i
 sleep 5
 # First we set position to the center of the screen
-position 0.5 0.5
+position 50 50
 # Now we loop 10 times, but for no longer than 10.1 seconds
 loop -time 10.1 10
   # Move to south-east and double-click
