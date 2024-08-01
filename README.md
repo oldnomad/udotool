@@ -26,10 +26,14 @@ endloop
 
 Build-time dependencies are:
 
-- `gcc(1)`, `glibc(7)`, `make(1)`, `install(1)`, and some common POSIX commands.
+- `gcc(1)`, `glibc(7)`, `make(1)`, `install(1)`, and some common POSIX
+  commands are used in the build process.
 - `pandoc(1)` is needed for building the manpage.
 - Package `debhelper` is needed to build a Debian package.
-- Linux kernel headers (package `linux-libc-dev` in Debian).
+- `git(1)` and `envsubst(1)` (package `gettext-base` in Debian) are used to
+  determine program version and generate file `src/config.h`.
+- Linux kernel headers (package `linux-libc-dev` in Debian) are needed for
+  `uinput` constants.
 
 Building just the binary and the manpage, and installing them:
 
