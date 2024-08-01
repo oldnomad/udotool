@@ -70,21 +70,23 @@ Unless specified otherwise:
  fractional. Minimum delay is **0.001** (1 millisecond), maximum
  is **86400** (1 day).
 
-**exec** _command_ [_arg_...]
-:   Execute specified command. If _command_ is does not include slashes,
- it will be searched in PATH. Environment for the command will
- include environment variable **$UDOTOOL_SYSNAME**, which contains
- virtual device directory name under **/sys/devices/virtual/input/**.
+**exec** [**-detach**] _command_ [_arg_...]
+:   Execute specified command. If option **-detach** is specified,
+ the command will be executed in a separate session. If _command_
+ does not include slashes, it will be searched in PATH. Environment
+ for the command will include environment variable **$UDOTOOL_SYSNAME**,
+ which contains virtual device directory name under
+ **/sys/devices/virtual/input/**.
 
 **script** [{_file_ | **-**}]
 :   Execute commands from specified file. If no file name is given or
  if the file name is a single minus sign (**-**), commands will be
  read from the standard input.
 
-**help** [{_command_ | **-axis** | **-key**}...]
+**help** [{_command_ | **-axis** | **-keys**}...]
 :   Print help on commands. If no arguments are specified, **help**
  will print description of all supported commands. Arguments
- **-axis** and **-key** will make **help** print lists of known
+ **-axis** and **-keys** will make **help** print lists of known
  axes and keys, correspondingly.
 
 **loop** [**-time** _seconds_] [_num_]
@@ -226,7 +228,7 @@ to determine which axes it uses.
 # KEY NAMES
 
 Full list of supported key names can be retrieved using command
-**help -key**. **WARNING**: The list is huge!
+**help -keys**. **WARNING**: The list is huge!
 
 If the key you want to emulate is not in the list, you can specify
 it as a number in decimal or (with prefix **0x**) hexadecimal.

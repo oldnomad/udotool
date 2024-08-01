@@ -46,54 +46,56 @@ enum {
     CMD_OPT_DELAY,
     CMD_OPT_R,
     CMD_OPT_H,
+    CMD_OPT_DETACH,
 };
 
-#define CMD_OPTMASK(v) (1u << (v))
+#define CMD_OPTMASK(v)   (1u << (v))
+#define HAS_OPTION(name) CMD_OPTMASK(CMD_OPT_##name)
 
 #define NSEC_PER_SEC   1.0e9 // Nanoseconds per second
 #define USEC_PER_SEC   1.0e6 // Microseconds per second
 
 static const struct udotool_verb_info KNOWN_VERBS[] = {
-    { "keydown", CMD_KEYDOWN, 1, -1, 0,
+    { "keydown",  CMD_KEYDOWN,  1, -1, 0,
       "<key>...",
       "Press down specified keys." },
-    { "keyup", CMD_KEYUP, 1, -1, 0,
+    { "keyup",    CMD_KEYUP,    1, -1, 0,
       "<key>...",
       "Release specified keys." },
-    { "key", CMD_KEY, 1, -1, CMD_OPTMASK(CMD_OPT_REPEAT)|CMD_OPTMASK(CMD_OPT_TIME)|CMD_OPTMASK(CMD_OPT_DELAY),
+    { "key",      CMD_KEY,      1, -1, HAS_OPTION(REPEAT)|HAS_OPTION(TIME)|HAS_OPTION(DELAY),
       "[-repeat <N>] [-time <seconds>] [-delay <seconds>] <key>...",
       "Press down and release specified keys." },
-    { "move", CMD_MOVE, 1, 3, CMD_OPTMASK(CMD_OPT_R),
+    { "move",     CMD_MOVE,     1,  3, HAS_OPTION(R),
       "[-r] <delta-x> [<delta-y> [<delta-z>]]",
       "Move pointer by specified delta." },
-    { "wheel", CMD_WHEEL, 1, 1, CMD_OPTMASK(CMD_OPT_H),
+    { "wheel",    CMD_WHEEL,    1,  1, HAS_OPTION(H),
       "[-h] <delta>",
       "Move wheel by specified delta." },
-    { "position", CMD_POSITION, 1, 3, CMD_OPTMASK(CMD_OPT_R),
+    { "position", CMD_POSITION, 1,  3, HAS_OPTION(R),
       "[-r] <pos-x> [<pos-y> [<pos-z>]]",
       "Move pointer to specified absolute position." },
-    { "open", CMD_OPEN, 0, 0, 0,
+    { "open",     CMD_OPEN,     0,  0, 0,
       "",
       "Initialize UINPUT." },
-    { "input", CMD_INPUT, 1, -1, 0,
+    { "input",    CMD_INPUT,    1, -1, 0,
       "<axis>=<value>...",
       "Generate a packet of input values." },
-    { "loop", CMD_LOOP, 0, 1, CMD_OPTMASK(CMD_OPT_TIME),
+    { "loop",     CMD_LOOP,     0,  1, HAS_OPTION(TIME),
       "[-time <seconds>] [<N>]",
       "Repeat following commands until nearest 'endloop'." },
-    { "endloop", CMD_ENDLOOP, 0, 0, 0,
+    { "endloop",  CMD_ENDLOOP,  0,  0, 0,
       "",
       "End current loop." },
-    { "sleep", CMD_SLEEP, 1, 1, 0,
+    { "sleep",    CMD_SLEEP,    1,  1, 0,
       "<seconds>",
       "Sleep for specified time." },
-    { "exec", CMD_EXEC, 1, -1, 0,
-      "<command> [<arg>...]",
+    { "exec",     CMD_EXEC,     1, -1, HAS_OPTION(DETACH),
+      "[-detach] <command> [<arg>...]",
       "Execute specified command." },
-    { "script", CMD_SCRIPT, 1, 1, 0,
+    { "script",   CMD_SCRIPT,   1,  1, 0,
       "<filename>",
       "Execute commands from specified file." },
-    { "help", CMD_HELP, 0, -1, 0, // NOTE: -axis and -key are regular parameters
+    { "help",     CMD_HELP,     0, -1, 0, // NOTE: -axis and -key are regular parameters
       "[<command> | -axis | -key]",
       "Print help information." },
     { NULL }
@@ -104,6 +106,7 @@ static const struct udotool_obj_id OPTLIST[] = {
     { "delay",  CMD_OPT_DELAY  },
     { "r",      CMD_OPT_R      },
     { "h",      CMD_OPT_H      },
+    { "detach", CMD_OPT_DETACH },
     { NULL }
 };
 
@@ -111,7 +114,7 @@ static const char  AXIS_KEYDOWN[] = "KEYDOWN";
 static const char  AXIS_KEYUP[]   = "KEYUP";
 
 static int cmd_help(int argc, const char *const argv[]);
-static int cmd_exec(int argc, const char *const argv[]);
+static int cmd_exec(int detach, int argc, const char *const argv[]);
 static int cmd_sleep(double delay, int internal);
 
 const struct udotool_verb_info *run_find_verb(const char *verb) {
@@ -236,6 +239,7 @@ int run_verb(const struct udotool_verb_info *info, struct udotool_exec_context *
             break;
         case CMD_OPT_R:
         case CMD_OPT_H:
+        case CMD_OPT_DETACH:
             alt = 1;
             break;
         default:
@@ -343,7 +347,7 @@ int run_verb(const struct udotool_verb_info *info, struct udotool_exec_context *
         }
         return cmd_sleep(delay, 0);
     case CMD_EXEC:
-        return cmd_exec(argc, argv);
+        return cmd_exec(alt, argc, argv);
     case CMD_OPEN:
         return uinput_open();
     case CMD_INPUT:
@@ -593,17 +597,34 @@ static int cmd_sleep(double delay, int internal) {
     return 0;
 }
 
-static int cmd_exec(int argc, const char *const argv[]) {
-    (void)argc;
+static int cmd_exec(int detach, int argc, const char *const argv[]) {
     pid_t pid;
     const char *command = argv[0];
+    posix_spawnattr_t attr;
     int err, status;
-    log_message(1, "exec: executing command '%s'", command);
-    if ((err = posix_spawnp(&pid, command, NULL, NULL, (char *const*)argv, environ)) != 0) {
+
+    (void)argc;
+    log_message(1, "exec: executing command '%s'%s", command, detach ? ", detached" : "");
+    if (posix_spawnattr_init(&attr) != 0) {
+        log_message(-1, "exec: error initializing attributes: %s", strerror(errno));
+        return -1;
+    }
+    if (detach) {
+        if (posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETSID) != 0) {
+            log_message(-1, "exec: error initializing attributes: %s", strerror(errno));
+            posix_spawnattr_destroy(&attr);
+            return -1;
+        }
+    }
+    err = posix_spawnp(&pid, command, NULL, &attr, (char *const*)argv, environ);
+    posix_spawnattr_destroy(&attr);
+    if (err != 0) {
         log_message(-1, "exec: cannot execute command '%s': %s", command, strerror(err));
         return -1;
     }
     log_message(1, "exec: started command '%s' at PID %d", command, pid);
+    if (detach)
+        return 0;
     if (waitpid(pid, &status, 0) < 0) {
         log_message(-1, "exec: error waiting for command '%s' PID %d", command, pid);
         return -1;
