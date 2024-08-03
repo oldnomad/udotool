@@ -7,7 +7,7 @@ stages:
 .build-common:
   before_script:
     - apt-get update -qq
-    - apt-get install -y -qq build-essential debhelper pandoc devscripts git gettext-base linux-libc-dev
+    - apt-get install -y -qq build-essential debhelper pandoc git gettext-base linux-libc-dev
     - gcc --version
 
 test-build:

@@ -191,10 +191,10 @@ Values for various axes are specified in abstract "units":
     It can be fractional, with maximum resolution of **1/120** of a notch.
 - Position in absolute axes is specified percents (**0.0** to **100.0**)
   of a maximum range. For example, if your screen has size **1920x1080**
-  pixels (FHD), then position **0.25 0.333333** is at pixel **(480,360)**.
+  pixels (FHD), then position **25 33.3333** is at pixel **(480,360)**.
   - For axes that have no natural range (for example, **ABS_PROFILE**),
     maximum range is **1000000** (one million), so to get axis value
-    **42** you have to specify it as **0.000042**.
+    **42** you have to specify it as **0.0042**.
 
 # AXIS NAMES
 
