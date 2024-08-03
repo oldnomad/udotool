@@ -29,7 +29,7 @@ debian-packages:
     - mv ../udotool*.changes build/
     - mv ../udotool*.buildinfo build/
     - echo '# Changes:' >build/release-notes.md
-    - dpkg-parsechangelog -S Changes | tail -n +3 >>build/release-notes.md
+    - dpkg-parsechangelog -S Changes | sed -e 's/^.$//' | tail -n +3 >>build/release-notes.md
   only:
     - tags
   artifacts:
