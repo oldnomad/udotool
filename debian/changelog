@@ -1,8 +1,8 @@
-udotool (1.3) UNRELEASED; urgency=medium
+udotool (1.3) unstable; urgency=medium
 
   * NEW: Option for `exec` to run command detached.
 
- -- Alec Kojaev <alec.kojaev@gmail.com>  Thu, 01 Aug 2024 21:10:15 +0300
+ -- Alec Kojaev <alec.kojaev@gmail.com>  Sat, 03 Aug 2024 17:22:40 +0300
 
 udotool (1.2) unstable; urgency=medium
 
