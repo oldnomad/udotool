@@ -117,7 +117,7 @@ static int cmd_help(int argc, const char *const argv[]);
 static int cmd_exec(int detach, int argc, const char *const argv[]);
 static int cmd_sleep(double delay, int internal);
 
-const struct udotool_verb_info *run_find_verb(const char *verb) {
+static const struct udotool_verb_info *cmd_find_verb(const char *verb) {
     for (const struct udotool_verb_info *info = KNOWN_VERBS; info->verb != NULL; info++)
         if (strcmp(verb, info->verb) == 0)
             return info;
@@ -189,8 +189,11 @@ static int calc_rtime(const struct udotool_verb_info *info, double rtime, struct
     return 0;
 }
 
-int run_verb(const struct udotool_verb_info *info, struct udotool_exec_context *ctxt,
-             int argc, const char *const argv[]) {
+int cmd_verb(struct udotool_exec_context *ctxt, const char *verb, int argc, const char *const argv[]) {
+    const struct udotool_verb_info *info = cmd_find_verb(verb);
+    if (info == NULL)
+        return -1;
+
     int repeat = 0, alt = 0;
     double delay = DEFAULT_SLEEP_SEC, rtime = 0;
     int arg0;
@@ -336,8 +339,8 @@ int run_verb(const struct udotool_verb_info *info, struct udotool_exec_context *
         return 0;
     case CMD_SCRIPT:
         if (argc <= 0 || argv == NULL)
-            return run_script(NULL);
-        return run_script(argv[0]);
+            return run_script(NULL, NULL);
+        return run_script(NULL, argv[0]);
     case CMD_SLEEP:
         if (parse_double(info, argv[0], &delay) < 0)
             return -1;
@@ -474,7 +477,7 @@ int run_context_run(struct udotool_exec_context *ctxt) {
     int ret = 0;
     for (ctxt->ref = 0; ctxt->ref < ctxt->size; ctxt->ref++) {
         struct udotool_cmd *cmd = &ctxt->cmds[ctxt->ref];
-        if ((ret = run_verb(cmd->info, ctxt, cmd->argc, cmd->argv)) < 0)
+        if ((ret = cmd_verb(ctxt, cmd->info->verb, cmd->argc, cmd->argv)) < 0)
             break;
     }
     int ret2 = run_context_free(ctxt);
@@ -537,27 +540,12 @@ int run_context_free(struct udotool_exec_context *ctxt) {
     return ret;
 }
 
-int run_command(int argc, const char *const argv[]) {
-    if (argc <= 0)
-        return cmd_help(argc, argv);
-    const struct udotool_verb_info *info = run_find_verb(argv[0]);
-    if (info == NULL)
-        return -1;
-    struct udotool_exec_context ctxt;
-    memset(&ctxt, 0, sizeof(ctxt));
-    int ret = run_verb(info, &ctxt, argc - 1, &argv[1]);
-    int ret2 = run_context_free(&ctxt);
-    return ret == 0 ? ret2 : ret;
-}
-
-static void print_verb_help(const struct udotool_verb_info *info) {
-    printf("%s %s\n    %s\n", info->verb, info->usage, info->description);
-}
-
 static int cmd_help(int argc, const char *const argv[]) {
+    static const char HELP_FMT[] = "%s %s\n    %s\n";
+
     if (argc <= 0 || argv == NULL) {
         for (const struct udotool_verb_info *info = KNOWN_VERBS; info->verb != NULL; info++)
-            print_verb_help(info);
+            printf(HELP_FMT, info->verb, info->usage, info->description);
         return 0;
     }
     for (int i = 0; i < argc; i++) {
@@ -577,9 +565,9 @@ static int cmd_help(int argc, const char *const argv[]) {
                 log_message(0, "unknown section %s", argv[i]);
             continue;
         }
-        const struct udotool_verb_info *info = run_find_verb(argv[i]);
+        const struct udotool_verb_info *info = cmd_find_verb(argv[i]);
         if (info != NULL)
-            print_verb_help(info);
+            printf(HELP_FMT, info->verb, info->usage, info->description);
     }
     return 0;
 }
@@ -631,4 +619,14 @@ static int cmd_exec(int detach, int argc, const char *const argv[]) {
     }
     log_message(1, "exec: command '%s' at PID %d finished with status %d", command, pid, status);
     return status == 0 ? 0 : -1;
+}
+
+int run_command(int argc, const char *const argv[]) {
+    if (argc <= 0)
+        return cmd_help(argc, argv);
+    struct udotool_exec_context ctxt;
+    memset(&ctxt, 0, sizeof(ctxt));
+    int ret = cmd_verb(&ctxt, argv[0], argc - 1, &argv[1]);
+    int ret2 = run_context_free(&ctxt);
+    return ret == 0 ? ret2 : ret;
 }

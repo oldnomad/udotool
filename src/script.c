@@ -50,22 +50,15 @@ static const char *split_token(char *line, char **endptr, int allow_quote) {
     return sp;
 }
 
-static int parse_script(FILE *input) {
-    struct udotool_exec_context ctxt;
+static int parse_script(struct udotool_exec_context *ctxt, FILE *input) {
     char line[MAX_SCRIPT_LINE];
     int ret = 0;
 
-    memset(&ctxt, 0, sizeof(ctxt));
     while (fgets(line, sizeof(line), input) != NULL) {
-        const struct udotool_verb_info *info;
         char *endptr = NULL;
         const char *verb = split_token(line, &endptr, 0);
         if (verb == NULL || *verb == '#' || *verb == ';') // Empty line or comment
             continue;
-        if ((info = run_find_verb(verb)) == NULL) {
-            ret = -1;
-            break;
-        }
 
         int argc = 0, maxarg = 0;
         const char **argv = NULL;
@@ -85,28 +78,39 @@ static int parse_script(FILE *input) {
         }
         if (argv != NULL)
             argv[argc] = NULL;
-        ret = run_verb(info, &ctxt, argc, argv);
+        ret = cmd_verb(ctxt, verb, argc, argv);
 
     ON_ERROR:
         free(argv);
         if (ret != 0)
             break;
     }
-    int ret2 = run_context_free(&ctxt);
-    return ret == 0 ? ret2 : ret;
+    return ret;
 }
 
-int run_script(const char *filename) {
-    if (filename == NULL || (filename[0] == '-' && filename[1] == '\0'))
-        return parse_script(stdin);
+int run_script(struct udotool_exec_context *ctxt, const char *filename) {
+    struct udotool_exec_context ctxt_local;
+    int ret;
 
-    FILE *input = fopen(filename, "re");
-    if (input == NULL) {
-        log_message(-1, "%s: cannot open script file: %s", filename, strerror(errno));
-        return -1;
+    if (ctxt == NULL) {
+        memset(&ctxt_local, 0, sizeof(ctxt_local));
+        ctxt = &ctxt_local;
     }
-    int ret = parse_script(input);
-    fclose(input);
-
+    if (filename == NULL || (filename[0] == '-' && filename[1] == '\0'))
+        ret = parse_script(ctxt, stdin);
+    else {
+        FILE *input = fopen(filename, "re");
+        if (input == NULL) {
+            log_message(-1, "%s: cannot open script file: %s", filename, strerror(errno));
+            return -1;
+        }
+        ret = parse_script(ctxt, input);
+        fclose(input);
+    }
+    if (ctxt == &ctxt_local) {
+        int ret2 = run_context_free(&ctxt_local);
+        if (ret == 0)
+            ret = ret2;
+    }
     return ret;
 }

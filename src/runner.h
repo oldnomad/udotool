@@ -42,8 +42,7 @@ struct udotool_exec_context {
                *cmds;
 };
 
-const struct udotool_verb_info *run_find_verb(const char *verb);
-int run_verb(const struct udotool_verb_info *info, struct udotool_exec_context *ctxt, int argc, const char *const argv[]);
+int cmd_verb(struct udotool_exec_context *ctxt, const char *verb, int argc, const char *const argv[]);
 
 int run_context_run(struct udotool_exec_context *ctxt);
 int run_context_cmd(struct udotool_exec_context *ctxt, const struct udotool_verb_info *info,

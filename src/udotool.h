@@ -21,5 +21,7 @@ extern const char *CFG_DRY_RUN_PREFIX;
 void log_message(int level, const char *fmt,...)
     __attribute__ ((format (printf, 2, 3)));
 
-int run_script(const char *filename);
+struct udotool_exec_context;
+
+int run_script(struct udotool_exec_context *ctxt, const char *filename);
 int run_command(int argc, const char *const argv[]);
