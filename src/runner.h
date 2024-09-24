@@ -29,6 +29,9 @@ struct udotool_loop {
 };
 
 struct udotool_exec_context {
+    const char *filename;
+    unsigned    lineno;
+
     int         run_mode;
     size_t      ref;
 

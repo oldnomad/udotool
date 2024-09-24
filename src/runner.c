@@ -620,13 +620,3 @@ static int cmd_exec(int detach, int argc, const char *const argv[]) {
     log_message(1, "exec: command '%s' at PID %d finished with status %d", command, pid, status);
     return status == 0 ? 0 : -1;
 }
-
-int run_command(int argc, const char *const argv[]) {
-    if (argc <= 0)
-        return cmd_help(argc, argv);
-    struct udotool_exec_context ctxt;
-    memset(&ctxt, 0, sizeof(ctxt));
-    int ret = cmd_verb(&ctxt, argv[0], argc - 1, &argv[1]);
-    int ret2 = run_context_free(&ctxt);
-    return ret == 0 ? ret2 : ret;
-}

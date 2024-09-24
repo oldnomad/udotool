@@ -4,49 +4,24 @@
  *
  * Copyright (c) 2024 Alec Kojaev
  */
+#include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <wordexp.h>
 
 #include "udotool.h"
 #include "runner.h"
 
-static const char WHITESPACE[] = " \t\n\r\f\v"; // Whitespace characters
+static char *whitespace_trim(char *line) {
+    char *sp, *ep;
 
-static const char *split_token(char *line, char **endptr, int allow_quote) {
-    // NOTE: !!! This modifies `line` !!!
-    if (line == NULL)
-        return NULL;
-    char *sp = line + strspn(line, WHITESPACE);
-    if (*sp == '\0')
-        return NULL; // End of line
-    if (allow_quote && (*sp == '"' || *sp == '\'')) {
-        // Quoted string
-        char quote_char = *sp++;
-        for (char *ep = sp; *ep != '\0'; ep++) {
-            if (*ep == quote_char) {
-                *ep = '\0';
-                *endptr = &ep[1];
-                return sp;
-            }
-            if (*ep == '\\') {
-                if (ep[1] == '\0') {
-                    // Escape at EOL, preserve
-                    *endptr = NULL;
-                    return sp;
-                }
-                strcpy(ep, &ep[1]);
-                continue;
-            }
-        }
-        // Quoted string is not closed, autoclose
-        *endptr = NULL;
-        return sp;
+    for (sp = line; *sp != '\0' && isspace(*sp); sp++);
+    if (*sp != '\0') {
+        for (ep = sp + strlen(sp); ep > sp && isspace(ep[-1]); ep--);
+        *ep = '\0';
     }
-    char *ep = sp + strcspn(sp, WHITESPACE);
-    *endptr = *ep == '\0' ? NULL : &ep[1];
-    *ep = '\0';
     return sp;
 }
 
@@ -55,33 +30,35 @@ static int parse_script(struct udotool_exec_context *ctxt, FILE *input) {
     int ret = 0;
 
     while (fgets(line, sizeof(line), input) != NULL) {
-        char *endptr = NULL;
-        const char *verb = split_token(line, &endptr, 0);
-        if (verb == NULL || *verb == '#' || *verb == ';') // Empty line or comment
+        ctxt->lineno++;
+        wordexp_t words;
+        const char *sp = whitespace_trim(line);
+        if (*sp == '\0' || *sp == '#' || *sp == ';') // Empty line or comment
             continue;
-
-        int argc = 0, maxarg = 0;
-        const char **argv = NULL;
-        const char *token;
-        while ((token = split_token(endptr, &endptr, 1)) != NULL) {
-            if ((maxarg - argc) < 2) {
-                maxarg += 16;
-                const char **vec = realloc(argv, maxarg*sizeof(char *));
-                if (vec == NULL) {
-                    log_message(-1, "script: not enough memory");
-                    ret = -1;
-                    goto ON_ERROR;
-                }
-                argv = vec;
+        words.we_wordv = NULL;
+        int wret = wordexp(sp, &words, WRDE_SHOWERR);
+        if (wret != 0) {
+            switch (wret) {
+            case WRDE_BADCHAR:
+                log_message(-1, "%s[%u]: illegal character", ctxt->filename, ctxt->lineno);
+                break;
+            case WRDE_NOSPACE:
+                log_message(-1, "%s[%u]: not enough memory", ctxt->filename, ctxt->lineno);
+                break;
+            case WRDE_SYNTAX:
+                log_message(-1, "%s[%u]: shell syntax error", ctxt->filename, ctxt->lineno);
+                break;
+            default:
+                log_message(-1, "%s[%u]: parsing error %d", ctxt->filename, ctxt->lineno, wret);
+                break;
             }
-            argv[argc++] = token;
+            ret = -1;
+            goto ON_ERROR;
         }
-        if (argv != NULL)
-            argv[argc] = NULL;
-        ret = cmd_verb(ctxt, verb, argc, argv);
-
+        if (words.we_wordc > 0) // Empty line can be a result of expansion
+            ret = cmd_verb(ctxt, words.we_wordv[0], words.we_wordc - 1, (const char *const*)&words.we_wordv[1]);
     ON_ERROR:
-        free(argv);
+        wordfree(&words);
         if (ret != 0)
             break;
     }
@@ -95,10 +72,14 @@ int run_script(struct udotool_exec_context *ctxt, const char *filename) {
     if (ctxt == NULL) {
         memset(&ctxt_local, 0, sizeof(ctxt_local));
         ctxt = &ctxt_local;
-    }
-    if (filename == NULL || (filename[0] == '-' && filename[1] == '\0'))
+    } else
+        ctxt_local = *ctxt;
+    ctxt->lineno = 0;
+    if (filename == NULL || (filename[0] == '-' && filename[1] == '\0')) {
+        ctxt->filename = "-";
         ret = parse_script(ctxt, stdin);
-    else {
+    } else {
+        ctxt->filename = filename;
         FILE *input = fopen(filename, "re");
         if (input == NULL) {
             log_message(-1, "%s: cannot open script file: %s", filename, strerror(errno));
@@ -111,6 +92,21 @@ int run_script(struct udotool_exec_context *ctxt, const char *filename) {
         int ret2 = run_context_free(&ctxt_local);
         if (ret == 0)
             ret = ret2;
+    } else {
+        ctxt->filename = ctxt_local.filename;
+        ctxt->lineno = ctxt_local.lineno;
     }
     return ret;
+}
+
+int run_command(int argc, const char *const argv[]) {
+    struct udotool_exec_context ctxt;
+    memset(&ctxt, 0, sizeof(ctxt));
+    int ret;
+    if (argc <= 0)
+        ret = cmd_verb(&ctxt, "help", argc, argv);
+    else
+        ret = cmd_verb(&ctxt, argv[0], argc - 1, &argv[1]);
+    int ret2 = run_context_free(&ctxt);
+    return ret == 0 ? ret2 : ret;
 }
