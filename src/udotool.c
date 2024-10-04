@@ -19,9 +19,9 @@
 
 static const char USAGE_NOTICE[] = "Usage: %s [<option>...] <subcommand>...\n\n"
                                    "Options:\n"
-                                   "    -i <file>, --input <file>\n"
-                                   "        Read commands from a file.\n"
-                                   "        Use file name '-' for standard input.\n"
+                                   "    -i [<file>], --input [<file>]\n"
+                                   "        Read commands from a file or from standard input.\n"
+                                   "        Use file name '-' for standard input (default).\n"
                                    "    -n, --dry-run\n"
                                    "        Instead of executing provided commands, print what will be done.\n"
                                    "    --dev <dev-path>\n"
@@ -40,7 +40,7 @@ static const char USAGE_NOTICE[] = "Usage: %s [<option>...] <subcommand>...\n\n"
                                    "Use subcommand \"help\" to get a list of all available subcommands.\n";
 static const char SHORT_OPTION[] = "+i:nvhV";
 static const struct option LONG_OPTION[] = {
-    { "input",       required_argument, NULL, 'i' },
+    { "input",       optional_argument, NULL, 'i' },
     { "dry-run",     no_argument,       NULL, 'n' },
     { "verbose",     no_argument,       NULL, 'v' },
     { "help",        no_argument,       NULL, 'h' },
@@ -81,7 +81,7 @@ int main(int argc, char *const argv[]) {
         }
         switch (opt) {
         case 'i':
-            input_file = optarg;
+            input_file = (optarg != NULL) ? optarg : "-";
             break;
         case 'n':
             CFG_DRY_RUN = 1;
