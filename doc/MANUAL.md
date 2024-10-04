@@ -7,10 +7,16 @@ than the man page.
 
 Following rules apply throughout all commands:
 
-- Any parameter can be enclosed in double quotes (`"..."`)
-  or apostrophes (`'...'`). Backslash (`\`) can be used to
-  escape any character within a quoted string, but special
-  escape sequences (like `"\n"`) are not supported.
+- Each line is subject to POSIX-compatible word expansion (tilde expansion,
+  parameter expansion, command substitution, arithmetic expansion, and so on),
+  field splitting, pathname expansion, and quote removal. For details see
+  [POSIX.1 standard](https://pubs.opengroup.org/onlinepubs/9799919799.2024edition/),
+  section **System Interfaces** [wordexp()](https://pubs.opengroup.org/onlinepubs/9799919799.2024edition/functions/wordexp.html)
+  and section **Shell & Utilities**
+  [2 Shell Command Language](https://pubs.opengroup.org/onlinepubs/9799919799.2024edition/utilities/V3_chap02.html#tag_19_06),
+  subsections **2.6 Word Expansion** and **2.2 Quoting**.
+  Note that at least in `glibc` version 2.40, `wordexp(3)` doesn't
+  support "dollar-single-quotes" quoting style, introduced in POSIX.1-2024.
 - All delays and times are specified in seconds. Minimum
   time is **0.001** (1 millisecond), maximum is **86400** (1 day).
 - Values for relative axes are specified in units, usually
@@ -27,6 +33,16 @@ Following rules apply throughout all commands:
   full range is `1000000` (one million), so `1` corresponds to
   exact value `10000` (ten thousand), and `0.0042` corresponds to
   exact value `42`.
+
+Environment available to `udotool` script and to all commands invoked
+from it contains all environment variables available to `udotool` itself,
+plus following variables:
+
+- `UDOTOOL_SYSNAME` contains virtual device directory name under
+  `/sys/devices/virtual/input/`. This additional environment variable
+  becomes available only when the `uinput` device is created, so if you
+  need it before any input emulation command, you should use `udotool`
+  command `open` (see below).
 
 ## Generic commands
 
@@ -46,35 +62,12 @@ Syntax: `exec [-detach] <COMMAND> [<ARG>...]`
 
 Execute specified command with specified arguments.
 
-Note that all arguments will be passed as-is. In particular,
-no shell expansion (variable expansion, word expansion, etc)
-will be performed. If you need some sort of expansion, use
-`sh -c`.
-
 The command can be a file path (containing slashes), or a plain
 command. If a plain command is specified, it will be searched
 in `$PATH`.
 
 If option `-detach` is specified, the command will be executed
 in background in a separate session.
-
-The command will receive the same environment variables as
-`udotool` itself, with addition of `$UDOTOOL_SYSNAME` variable,
-which contains virtual device directory name under
-`/sys/devices/virtual/input/`. However, this additional
-environment variable is only set when the `uinput` device is
-created, so if you need it before any input emulation command,
-use `open`:
-
-```
-#!/usr/bin/udotool -i
-# Following will not print anything, the device isn't created yet
-exec sh -c "echo $UDOTOOL_SYSNAME"
-# You need either an input emulation command, or `open`
-open
-# Now we know the device name:
-exec sh -c "echo $UDOTOOL_SYSNAME"
-```
 
 ### SCRIPT
 
@@ -87,7 +80,7 @@ used for reading commands from standard input.
 
 When used on command line, `script` is equivalent to option
 `--input` (`-i`). That is, `/usr/bin/udotool script my-file`
-is the same as `/usr/bin/udotool -i <my-file`.
+is the same as `/usr/bin/udotool -i my-file`.
 
 When a script is called from another script, any error in the
 called script results in an error in the caller script.
@@ -225,9 +218,19 @@ is executed. However, you might want to create it explicitly with this
 command in following cases:
 
 - If you want to execute an external command using `exec` before any
-  input commands, and you want to use environment variable `$UDOTOOL_SYSNAME`.
+  input commands, and you want to use environment variable `UDOTOOL_SYSNAME`.
 - If you want to give your software some time to detect new device
   being attached before emulating input.
+
+```
+#!/usr/bin/udotool -i
+# Following will not print anything, the device isn't created yet
+exec echo $UDOTOOL_SYSNAME
+# You need either an input emulation command, or `open`
+open
+# Now we know the device name:
+exec echo $UDOTOOL_SYSNAME
+```
 
 ### INPUT
 
@@ -252,5 +255,5 @@ For example:
 input ABS_X=50 ABS_Y=25 KEYDOWN=BTN_DPAD_LEFT
 ```
 
-This emulates a report from a gamepad with left analog stick being tilted
-up and left button on D-pad being pressed.
+This emulates a report from a gamepad saying that its left analog stick
+is tilted up, and its left D-Pad button is pressed.

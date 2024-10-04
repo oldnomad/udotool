@@ -13,8 +13,8 @@ All mappings below are extracted from Linux kernel documentation.
   `BTN_FORWARD`, `BTN_TASK`, and so on.
 - Wheels are reported as axes `REL_WHEEL` (main/vertical wheel) and
   `REL_HWHEEL` (horizontal wheel), with values indicating number of
-  detents moved. Note that this value can be non-integer, since we
-  support high-resolution scrolling (with steps of 1/120 of a detent).
+  notches moved. Note that this value can be non-integer, since we
+  support high-resolution scrolling (with steps of 1/120 of a notch).
 
 ## Gamepad
 
@@ -41,7 +41,7 @@ Some controls can be digital (reported as buttons), or analog
   - Lower: `BTN_TR2` or axis `ABS_HAT2X` (right/ZR), `BTN_TL2` or axis
     `ABS_HAT2Y` (left/ZL).
   - If only one pair is present, it's reported as right.
-  - If analog, pressure is reported as positive from 0.
+  - If analog, pressure is reported as a positive integer.
 - Menu-Pad:
   - `BTN_START` (right or only button) and `BTN_SELECT` (left, if
     present).

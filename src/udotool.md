@@ -10,7 +10,7 @@ udotool - emulate input events
 
 **udotool** [_options_] _cmd_ [_arg_...]
 
-**udotool** [_options_] {**-i** | **\-\-input**} _file_
+**udotool** [_options_] {**-i** | **\-\-input**} [_file_]
 
 **udotool** [{**-h** | *\-\-help**} | {**-V** | **\-\-version**}]
 
@@ -28,9 +28,10 @@ Wayland, and even in console.
 The program follows the usual GNU command line syntax, with long options
 starting with two dashes ('-'). A summary of options is included below.
 
-**-i** _file_, **\-\-input** _file_
-:   Read commands from a file instead of command line. File name **-**
- (single minus sign) can be used for standard input.
+**-i** [_file_], **\-\-input** [_file_]
+:   Read commands from a file or from standard input, instead of using
+ the command line. File name **-** (single minus sign) can be used for
+ standard input. If file name is omitted, default is to use standard input.
 
 **-n**, **\-\-dry-run**
 :   Do not execute input emulation commands. Generic commands will be executed anyway.
@@ -63,6 +64,14 @@ Unless specified otherwise:
 - Loop and repeat counters are integer.
 - For other values see section **VALUE UNITS** below.
 
+Environment available to scripts and to all commands invoked
+from a script contains all environment variables available to
+`udotool` itself, plus following variables:
+
+- **$UDOTOOL_SYSNAME** contains virtual device directory name under
+  **/sys/devices/virtual/input/**. It becomes available when
+  emulation device is initialized.
+
 ## Generic commands
 
 **sleep** _seconds_
@@ -73,10 +82,7 @@ Unless specified otherwise:
 **exec** [**-detach**] _command_ [_arg_...]
 :   Execute specified command. If option **-detach** is specified,
  the command will be executed in a separate session. If _command_
- does not include slashes, it will be searched in PATH. Environment
- for the command will include environment variable **$UDOTOOL_SYSNAME**,
- which contains virtual device directory name under
- **/sys/devices/virtual/input/**.
+ does not include slashes, it will be searched in PATH.
 
 **script** [{_file_ | **-**}]
 :   Execute commands from specified file. If no file name is given or
@@ -164,21 +170,20 @@ key -repeat 10 BTN_LEFT
 **NOTE**: Since some systems don't properly split options in shebang
 line, to combine several options you can use only short options:
 **#!/usr/bin/udotool -vi** will work, but **#!/usr/bin/udotool -v -i**
-won't.
+probably won't.
 
 In scripts, each command should be in a separate line. There is no
 syntax for breaking a command into several lines.
 
 Empty lines are ignored. Leading and trailing whitespace is ignored.
 
-Lines starting with hash (**#**) or semicolon (**;**), probably with
+Lines starting with hash (**#**) or semicolon (**;**), optionally with
 some whitespace before them, are treated as comments and ignored.
 
-Command arguments may be enclosed in apostrophes (**\'...\'**) or
-quotes (**\"...\"**). Inside quoted arguments, backslash character
-escapes following character, so, for example, **\"A\\\"B\\\\\"** is
-a 4-character string containing: character **A**, quote character,
-character **B**, backslash character.
+Command lines are subject to POSIX-compatible word expansion and
+quote removal. That means that you can use all features (single quote,
+double quote, command substitution, and so on) available in standard
+POSIX-compatible shell.
 
 # VALUE UNITS
 
