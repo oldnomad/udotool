@@ -107,9 +107,7 @@ static const struct udotool_obj_id OPTLIST[] = {
 static const char  AXIS_KEYDOWN[] = "KEYDOWN";
 static const char  AXIS_KEYUP[]   = "KEYUP";
 
-static int cmd_help(int argc, const char *const argv[]);
-
-static const struct udotool_verb_info *cmd_find_verb(const char *verb) {
+static const struct udotool_verb_info *find_verb(const char *verb) {
     for (const struct udotool_verb_info *info = KNOWN_VERBS; info->verb != NULL; info++)
         if (strcmp(verb, info->verb) == 0)
             return info;
@@ -164,6 +162,38 @@ static int parse_rel_value(const struct udotool_verb_info *info, const char *tex
     return 0;
 }
 
+static int print_help(int argc, const char *const argv[]) {
+    static const char HELP_FMT[] = "%s %s\n    %s\n";
+
+    if (argc <= 0 || argv == NULL) {
+        for (const struct udotool_verb_info *info = KNOWN_VERBS; info->verb != NULL; info++)
+            printf(HELP_FMT, info->verb, info->usage, info->description);
+        return 0;
+    }
+    for (int i = 0; i < argc; i++) {
+        if (argv[i][0] == '-') {
+            if (strcmp(argv[i], "-axis") == 0) {
+                printf("Relative axes:\n");
+                for (const struct udotool_obj_id *idptr = UINPUT_REL_AXES; idptr->name != NULL; idptr++)
+                    printf(" - %s (0x%02X)\n", idptr->name, (unsigned)idptr->value);
+                printf("Absolute axes:\n");
+                for (const struct udotool_obj_id *idptr = UINPUT_ABS_AXES; idptr->name != NULL; idptr++)
+                    printf(" - %s (0x%02X)\n", idptr->name, (unsigned)idptr->value);
+            } else if (strcmp(argv[i], "-keys") == 0) {
+                printf("Known keys:\n");
+                for (const struct udotool_obj_id *idptr = UINPUT_KEYS; idptr->name != NULL; idptr++)
+                    printf(" - %s (0x%03X)\n", idptr->name, (unsigned)idptr->value);
+            } else
+                log_message(0, "unknown section %s", argv[i]);
+            continue;
+        }
+        const struct udotool_verb_info *info = find_verb(argv[i]);
+        if (info != NULL)
+            printf(HELP_FMT, info->verb, info->usage, info->description);
+    }
+    return 0;
+}
+
 static int calc_rtime(const struct udotool_verb_info *info, double rtime, struct timeval *pval) {
     if (rtime == 0) {
         timerclear(pval);
@@ -181,11 +211,7 @@ static int calc_rtime(const struct udotool_verb_info *info, double rtime, struct
     return 0;
 }
 
-int cmd_verb(struct udotool_exec_context *ctxt, const char *verb, int argc, const char *const argv[]) {
-    const struct udotool_verb_info *info = cmd_find_verb(verb);
-    if (info == NULL)
-        return -1;
-
+static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb_info *info, int argc, const char *const argv[]) {
     int repeat = 0, alt = 0;
     double delay = DEFAULT_SLEEP_SEC, rtime = 0;
     int arg0;
@@ -256,7 +282,7 @@ int cmd_verb(struct udotool_exec_context *ctxt, const char *verb, int argc, cons
     if (ctxt->run_mode == 0) {
         switch (info->cmd) {
         case CMD_LOOP:
-            if (run_context_cmd(ctxt, info, argc + arg0, argv - arg0) < 0)
+            if (run_ctxt_cmd(ctxt, info, argc + arg0, argv - arg0) < 0)
                 return -1;
             ctxt->depth++;
             if (ctxt->depth >= MAX_LOOP_DEPTH) {
@@ -269,15 +295,15 @@ int cmd_verb(struct udotool_exec_context *ctxt, const char *verb, int argc, cons
                 log_message(-1, "%s: endloop without loop",info->verb);
                 return -1;
             }
-            if (run_context_cmd(ctxt, info, argc + arg0, argv - arg0) < 0)
+            if (run_ctxt_cmd(ctxt, info, argc + arg0, argv - arg0) < 0)
                 return -1;
             ctxt->depth--;
             if (ctxt->depth == 0)
-                return run_context_run(ctxt);
+                return run_ctxt_exec(ctxt);
             return 0;
         default:
             if (ctxt->depth > 0)
-                return run_context_cmd(ctxt, info, argc + arg0, argv - arg0);
+                return run_ctxt_cmd(ctxt, info, argc + arg0, argv - arg0);
             break;
         }
     }
@@ -286,7 +312,7 @@ int cmd_verb(struct udotool_exec_context *ctxt, const char *verb, int argc, cons
     struct timeval tval;
     switch (info->cmd) {
     case CMD_HELP:
-        return cmd_help(argc, argv);
+        return print_help(argc, argv);
     case CMD_LOOP:
         // run_mode == 1, depth < (MAX_LOOP_DEPTH - 1)
         if (argc > 0) {
@@ -464,20 +490,34 @@ int cmd_verb(struct udotool_exec_context *ctxt, const char *verb, int argc, cons
     return -1;
 }
 
-int run_context_run(struct udotool_exec_context *ctxt) {
+int run_line(struct udotool_exec_context *ctxt, int argc, const char *const argv[]) {
+    const char *verb;
+    if (argc > 0) {
+        verb = argv[0];
+        --argc;
+        ++argv;
+    } else
+        verb = "help";
+    const struct udotool_verb_info *info = find_verb(verb);
+    if (info == NULL)
+        return -1;
+    return run_verb(ctxt, info, argc, argv);
+}
+
+int run_ctxt_exec(struct udotool_exec_context *ctxt) {
     ctxt->run_mode = 1;
     int ret = 0;
     for (ctxt->ref = 0; ctxt->ref < ctxt->size; ctxt->ref++) {
         struct udotool_cmd *cmd = &ctxt->cmds[ctxt->ref];
-        if ((ret = cmd_verb(ctxt, cmd->info->verb, cmd->argc, cmd->argv)) < 0)
+        if ((ret = run_verb(ctxt, cmd->info, cmd->argc, cmd->argv)) < 0)
             break;
     }
-    int ret2 = run_context_free(ctxt);
+    int ret2 = run_ctxt_free(ctxt);
     return ret == 0 ? ret2 : ret;
 }
 
-int run_context_cmd(struct udotool_exec_context *ctxt, const struct udotool_verb_info *info,
-                    int argc, const char *const argv[]) {
+int run_ctxt_cmd(struct udotool_exec_context *ctxt, const struct udotool_verb_info *info,
+                 int argc, const char *const argv[]) {
     const char ** argv_new = NULL;
     if (argc > 0) {
         size_t arg_size = (argc + 1) * sizeof(char *);
@@ -517,7 +557,11 @@ int run_context_cmd(struct udotool_exec_context *ctxt, const struct udotool_verb
     return 0;
 }
 
-int run_context_free(struct udotool_exec_context *ctxt) {
+void run_ctxt_init(struct udotool_exec_context *ctxt) {
+    memset(ctxt, 0, sizeof(*ctxt));
+}
+
+int run_ctxt_free(struct udotool_exec_context *ctxt) {
     int ret = 0;
     if (ctxt->depth > 0) {
         log_message(-1, "loop was not terminated, depth %zu", ctxt->depth);
@@ -530,36 +574,4 @@ int run_context_free(struct udotool_exec_context *ctxt) {
     }
     memset(ctxt, 0, sizeof(*ctxt));
     return ret;
-}
-
-static int cmd_help(int argc, const char *const argv[]) {
-    static const char HELP_FMT[] = "%s %s\n    %s\n";
-
-    if (argc <= 0 || argv == NULL) {
-        for (const struct udotool_verb_info *info = KNOWN_VERBS; info->verb != NULL; info++)
-            printf(HELP_FMT, info->verb, info->usage, info->description);
-        return 0;
-    }
-    for (int i = 0; i < argc; i++) {
-        if (argv[i][0] == '-') {
-            if (strcmp(argv[i], "-axis") == 0) {
-                printf("Relative axes:\n");
-                for (const struct udotool_obj_id *idptr = UINPUT_REL_AXES; idptr->name != NULL; idptr++)
-                    printf(" - %s (0x%02X)\n", idptr->name, (unsigned)idptr->value);
-                printf("Absolute axes:\n");
-                for (const struct udotool_obj_id *idptr = UINPUT_ABS_AXES; idptr->name != NULL; idptr++)
-                    printf(" - %s (0x%02X)\n", idptr->name, (unsigned)idptr->value);
-            } else if (strcmp(argv[i], "-keys") == 0) {
-                printf("Known keys:\n");
-                for (const struct udotool_obj_id *idptr = UINPUT_KEYS; idptr->name != NULL; idptr++)
-                    printf(" - %s (0x%03X)\n", idptr->name, (unsigned)idptr->value);
-            } else
-                log_message(0, "unknown section %s", argv[i]);
-            continue;
-        }
-        const struct udotool_verb_info *info = cmd_find_verb(argv[i]);
-        if (info != NULL)
-            printf(HELP_FMT, info->verb, info->usage, info->description);
-    }
-    return 0;
 }

@@ -56,7 +56,7 @@ static int parse_script(struct udotool_exec_context *ctxt, FILE *input) {
             goto ON_ERROR;
         }
         if (words.we_wordc > 0) // Empty line can be a result of expansion
-            ret = cmd_verb(ctxt, words.we_wordv[0], words.we_wordc - 1, (const char *const*)&words.we_wordv[1]);
+            ret = run_line(ctxt, words.we_wordc, (const char *const*)words.we_wordv);
     ON_ERROR:
         wordfree(&words);
         if (ret != 0)
@@ -69,7 +69,7 @@ int run_script(const char *filename) {
     struct udotool_exec_context ctxt;
     int ret;
 
-    memset(&ctxt, 0, sizeof(ctxt));
+    run_ctxt_init(&ctxt);
     ctxt.lineno = 0;
     if (filename == NULL || (filename[0] == '-' && filename[1] == '\0')) {
         ctxt.filename = "-";
@@ -84,7 +84,7 @@ int run_script(const char *filename) {
         ret = parse_script(&ctxt, input);
         fclose(input);
     }
-    int ret2 = run_context_free(&ctxt);
+    int ret2 = run_ctxt_free(&ctxt);
     if (ret == 0)
         ret = ret2;
     return ret;
@@ -92,12 +92,8 @@ int run_script(const char *filename) {
 
 int run_command(int argc, const char *const argv[]) {
     struct udotool_exec_context ctxt;
-    memset(&ctxt, 0, sizeof(ctxt));
-    int ret;
-    if (argc <= 0)
-        ret = cmd_verb(&ctxt, "help", argc, argv);
-    else
-        ret = cmd_verb(&ctxt, argv[0], argc - 1, &argv[1]);
-    int ret2 = run_context_free(&ctxt);
+    run_ctxt_init(&ctxt);
+    int ret = run_line(&ctxt, argc, argv);
+    int ret2 = run_ctxt_free(&ctxt);
     return ret == 0 ? ret2 : ret;
 }
