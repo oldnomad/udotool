@@ -331,8 +331,8 @@ int cmd_verb(struct udotool_exec_context *ctxt, const char *verb, int argc, cons
         return 0;
     case CMD_SCRIPT:
         if (argc <= 0 || argv == NULL)
-            return run_script(NULL, NULL);
-        return run_script(NULL, argv[0]);
+            return run_script(NULL);
+        return run_script(argv[0]);
     case CMD_SLEEP:
         if (parse_double(info, argv[0], &delay) < 0)
             return -1;

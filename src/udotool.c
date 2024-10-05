@@ -115,7 +115,7 @@ int main(int argc, char *const argv[]) {
             log_message(-1, "too many arguments for --input mode");
             ret = -1;
         } else
-            ret = run_script(NULL, input_file);
+            ret = run_script(input_file);
     } else
         ret = run_command(argc - optind, (const char *const*)&argv[optind]);
     uinput_close();

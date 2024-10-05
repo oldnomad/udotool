@@ -65,37 +65,28 @@ static int parse_script(struct udotool_exec_context *ctxt, FILE *input) {
     return ret;
 }
 
-int run_script(struct udotool_exec_context *ctxt, const char *filename) {
-    struct udotool_exec_context ctxt_local;
+int run_script(const char *filename) {
+    struct udotool_exec_context ctxt;
     int ret;
 
-    if (ctxt == NULL) {
-        memset(&ctxt_local, 0, sizeof(ctxt_local));
-        ctxt = &ctxt_local;
-    } else
-        ctxt_local = *ctxt;
-    ctxt->lineno = 0;
+    memset(&ctxt, 0, sizeof(ctxt));
+    ctxt.lineno = 0;
     if (filename == NULL || (filename[0] == '-' && filename[1] == '\0')) {
-        ctxt->filename = "-";
-        ret = parse_script(ctxt, stdin);
+        ctxt.filename = "-";
+        ret = parse_script(&ctxt, stdin);
     } else {
-        ctxt->filename = filename;
+        ctxt.filename = filename;
         FILE *input = fopen(filename, "re");
         if (input == NULL) {
             log_message(-1, "%s: cannot open script file: %s", filename, strerror(errno));
             return -1;
         }
-        ret = parse_script(ctxt, input);
+        ret = parse_script(&ctxt, input);
         fclose(input);
     }
-    if (ctxt == &ctxt_local) {
-        int ret2 = run_context_free(&ctxt_local);
-        if (ret == 0)
-            ret = ret2;
-    } else {
-        ctxt->filename = ctxt_local.filename;
-        ctxt->lineno = ctxt_local.lineno;
-    }
+    int ret2 = run_context_free(&ctxt);
+    if (ret == 0)
+        ret = ret2;
     return ret;
 }
 
