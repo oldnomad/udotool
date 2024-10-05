@@ -15,6 +15,9 @@
 
 #define UINPUT_ABS_MAXVALUE 1000000 // Maximum absolute position
 
+#define NSEC_PER_SEC          1.0e9 // Nanoseconds per second
+#define USEC_PER_SEC          1.0e6 // Microseconds per second
+
 extern int         CFG_DRY_RUN;
 extern const char *CFG_DRY_RUN_PREFIX;
 
@@ -25,3 +28,6 @@ struct udotool_exec_context;
 
 int run_script(struct udotool_exec_context *ctxt, const char *filename);
 int run_command(int argc, const char *const argv[]);
+
+int cmd_exec(int detach, int argc, const char *const argv[]);
+int cmd_sleep(double delay, int internal);
