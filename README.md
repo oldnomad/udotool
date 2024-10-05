@@ -22,6 +22,10 @@ loop 20
 endloop
 ```
 
+**WARNING:** **udotool** is currently under active development, so
+script language may change even between minor versions. Script language
+is expected to become stable in version **2.0**.
+
 ## Building and installing
 
 Build-time dependencies are:
