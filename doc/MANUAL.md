@@ -75,6 +75,16 @@ Syntax: `echo <ARG>...`
 
 Print all specified arguments to standard output.
 
+### SET
+
+Syntax: `set <NAME> [<VALUE>]`
+
+Set environment variable `<NAME>` to value `<VALUE>`, or unset it
+if `<VALUE>` is omitted.
+
+Changes in the environment become available to all commands executed after
+this.
+
 ### SCRIPT
 
 Syntax: `script <FILE>`

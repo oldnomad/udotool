@@ -29,4 +29,5 @@ int run_command(int argc, const char *const argv[]);
 
 int cmd_echo(int argc, const char *const argv[]);
 int cmd_exec(int detach, int argc, const char *const argv[]);
+int cmd_set(const char *name, const char *value);
 int cmd_sleep(double delay, int internal);

@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <spawn.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
 #include <sys/wait.h>
@@ -23,6 +24,19 @@ int cmd_echo(int argc, const char *const argv[]) {
         fputs(argv[argn], stdout);
     }
     putc('\n', stdout);
+    return 0;
+}
+
+int cmd_set(const char *name, const char *value) {
+    int ret;
+    if (value == NULL)
+        ret = unsetenv(name);
+    else
+        ret = setenv(name, value, 1);
+    if (ret != 0) {
+        log_message(-1, "set: error for name '%s': %s", name, strerror(errno));
+        return -1;
+    }
     return 0;
 }
 

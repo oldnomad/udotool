@@ -87,6 +87,10 @@ from a script contains all environment variables available to
 **echo** _arg_...
 :   Print specified arguments to standard output.
 
+**set** _name_ [_value_]
+:   Set environment variable _name_ to value _value_, or unset it
+ if _value_ is not specified.
+
 **script** [{_file_ | **-**}]
 :   Execute commands from specified file. If no file name is given or
  if the file name is a single minus sign (**-**), commands will be
