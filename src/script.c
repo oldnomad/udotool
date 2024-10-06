@@ -9,7 +9,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <wordexp.h>
 
 #include "udotool.h"
 #include "runner.h"
@@ -31,34 +30,10 @@ static int parse_script(struct udotool_exec_context *ctxt, FILE *input) {
 
     while (fgets(line, sizeof(line), input) != NULL) {
         ctxt->lineno++;
-        wordexp_t words;
         const char *sp = whitespace_trim(line);
         if (*sp == '\0' || *sp == '#' || *sp == ';') // Empty line or comment
             continue;
-        words.we_wordv = NULL;
-        int wret = wordexp(sp, &words, WRDE_SHOWERR);
-        if (wret != 0) {
-            switch (wret) {
-            case WRDE_BADCHAR:
-                log_message(-1, "%s[%u]: illegal character", ctxt->filename, ctxt->lineno);
-                break;
-            case WRDE_NOSPACE:
-                log_message(-1, "%s[%u]: not enough memory", ctxt->filename, ctxt->lineno);
-                break;
-            case WRDE_SYNTAX:
-                log_message(-1, "%s[%u]: shell syntax error", ctxt->filename, ctxt->lineno);
-                break;
-            default:
-                log_message(-1, "%s[%u]: parsing error %d", ctxt->filename, ctxt->lineno, wret);
-                break;
-            }
-            ret = -1;
-            goto ON_ERROR;
-        }
-        if (words.we_wordc > 0) // Empty line can be a result of expansion
-            ret = run_line(ctxt, words.we_wordc, (const char *const*)words.we_wordv);
-    ON_ERROR:
-        wordfree(&words);
+        ret = run_line(ctxt, line);
         if (ret != 0)
             break;
     }
@@ -93,7 +68,7 @@ int run_script(const char *filename) {
 int run_command(int argc, const char *const argv[]) {
     struct udotool_exec_context ctxt;
     run_ctxt_init(&ctxt);
-    int ret = run_line(&ctxt, argc, argv);
+    int ret = run_line_args(&ctxt, argc, argv);
     int ret2 = run_ctxt_free(&ctxt);
     return ret == 0 ? ret2 : ret;
 }

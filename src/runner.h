@@ -45,7 +45,8 @@ struct udotool_exec_context {
                *cmds;
 };
 
-int run_line(struct udotool_exec_context *ctxt, int argc, const char *const argv[]);
+int run_line_args(struct udotool_exec_context *ctxt, int argc, const char *const argv[]);
+int run_line(struct udotool_exec_context *ctxt, const char *line);
 
 void run_ctxt_init(struct udotool_exec_context *ctxt);
 int  run_ctxt_free(struct udotool_exec_context *ctxt);

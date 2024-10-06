@@ -11,6 +11,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <wordexp.h>
 
 #include "udotool.h"
 #include "runner.h"
@@ -502,7 +503,7 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
     return -1;
 }
 
-int run_line(struct udotool_exec_context *ctxt, int argc, const char *const argv[]) {
+int run_line_args(struct udotool_exec_context *ctxt, int argc, const char *const argv[]) {
     const char *verb;
     if (argc > 0) {
         verb = argv[0];
@@ -514,6 +515,34 @@ int run_line(struct udotool_exec_context *ctxt, int argc, const char *const argv
     if (info == NULL)
         return -1;
     return run_verb(ctxt, info, argc, argv);
+}
+
+int run_line(struct udotool_exec_context *ctxt, const char *line) {
+    wordexp_t words;
+    words.we_wordv = NULL;
+    int ret = wordexp(line, &words, WRDE_SHOWERR);
+    if (ret != 0) {
+        switch (ret) {
+        case WRDE_BADCHAR:
+            log_message(-1, "%s[%u]: illegal character", ctxt->filename, ctxt->lineno);
+            break;
+        case WRDE_NOSPACE:
+            log_message(-1, "%s[%u]: not enough memory", ctxt->filename, ctxt->lineno);
+            break;
+        case WRDE_SYNTAX:
+            log_message(-1, "%s[%u]: shell syntax error", ctxt->filename, ctxt->lineno);
+            break;
+        default:
+            log_message(-1, "%s[%u]: parsing error %d", ctxt->filename, ctxt->lineno, ret);
+            break;
+        }
+        return -1;
+    }
+    ret = 0;
+    if (words.we_wordc > 0) // Empty line can be a result of expansion
+        ret = run_line_args(ctxt, words.we_wordc, (const char *const*)words.we_wordv);
+    wordfree(&words);
+    return ret;
 }
 
 int run_ctxt_exec(struct udotool_exec_context *ctxt) {
