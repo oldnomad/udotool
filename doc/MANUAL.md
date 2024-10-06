@@ -69,6 +69,12 @@ in `$PATH`.
 If option `-detach` is specified, the command will be executed
 in background in a separate session.
 
+### ECHO
+
+Syntax: `echo <ARG>...`
+
+Print all specified arguments to standard output.
+
 ### SCRIPT
 
 Syntax: `script <FILE>`

@@ -6,6 +6,7 @@
  */
 #include <errno.h>
 #include <spawn.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
 #include <sys/wait.h>
@@ -13,6 +14,17 @@
 #include <unistd.h>
 
 #include "udotool.h"
+
+int cmd_echo(int argc, const char *const argv[]) {
+    int argn;
+    for (argn = 0; argn < argc; argn++) {
+        if (argn != 0)
+            putc(' ', stdout);
+        fputs(argv[argn], stdout);
+    }
+    putc('\n', stdout);
+    return 0;
+}
 
 int cmd_sleep(double delay, int internal) {
     struct timespec tval;

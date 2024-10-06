@@ -84,6 +84,9 @@ from a script contains all environment variables available to
  the command will be executed in a separate session. If _command_
  does not include slashes, it will be searched in PATH.
 
+**echo** _arg_...
+:   Print specified arguments to standard output.
+
 **script** [{_file_ | **-**}]
 :   Execute commands from specified file. If no file name is given or
  if the file name is a single minus sign (**-**), commands will be

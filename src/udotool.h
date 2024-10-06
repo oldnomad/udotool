@@ -27,5 +27,6 @@ void log_message(int level, const char *fmt,...)
 int run_script(const char *filename);
 int run_command(int argc, const char *const argv[]);
 
+int cmd_echo(int argc, const char *const argv[]);
 int cmd_exec(int detach, int argc, const char *const argv[]);
 int cmd_sleep(double delay, int internal);

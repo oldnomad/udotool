@@ -25,6 +25,7 @@ enum {
     // Generic commands
     CMD_SLEEP = 0x200,
     CMD_EXEC,
+    CMD_ECHO,
     // UINPUT commands
     CMD_OPEN = 0x300,
     CMD_INPUT,
@@ -86,6 +87,9 @@ static const struct udotool_verb_info KNOWN_VERBS[] = {
     { "exec",     CMD_EXEC,     1, -1, HAS_OPTION(DETACH),
       "[-detach] <command> [<arg>...]",
       "Execute specified command." },
+    { "echo",     CMD_ECHO,     0, -1, 0,
+      "<arg>...",
+      "Print specified arguments to standard output." },
     { "script",   CMD_SCRIPT,   1,  1, 0,
       "<filename>",
       "Execute commands from specified file." },
@@ -369,6 +373,8 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
         return cmd_sleep(delay, 0);
     case CMD_EXEC:
         return cmd_exec(alt, argc, argv);
+    case CMD_ECHO:
+        return cmd_echo(argc, argv);
     case CMD_OPEN:
         return uinput_open();
     case CMD_INPUT:
