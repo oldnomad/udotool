@@ -13,7 +13,7 @@ input, so it can be used to create input-emulating scripts:
 
 ```
 #!/usr/bin/udotool -i
-exec echo "Move mouse around and double-click"
+echo "Move mouse around and double-click"
 sleep 5
 position 10 12.5
 loop 20
