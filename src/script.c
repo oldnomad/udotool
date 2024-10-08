@@ -33,7 +33,7 @@ static int parse_script(struct udotool_exec_context *ctxt, FILE *input) {
         const char *sp = whitespace_trim(line);
         if (*sp == '\0' || *sp == '#' || *sp == ';') // Empty line or comment
             continue;
-        ret = run_line(ctxt, line);
+        ret = run_line(ctxt, sp, 0);
         if (ret != 0)
             break;
     }
@@ -44,7 +44,8 @@ int run_script(const char *filename) {
     struct udotool_exec_context ctxt;
     int ret;
 
-    run_ctxt_init(&ctxt);
+    if ((ret = run_ctxt_init(&ctxt)) != 0)
+        return ret;
     ctxt.lineno = 0;
     if (filename == NULL || (filename[0] == '-' && filename[1] == '\0')) {
         ctxt.filename = "-";
@@ -67,8 +68,11 @@ int run_script(const char *filename) {
 
 int run_command(int argc, const char *const argv[]) {
     struct udotool_exec_context ctxt;
-    run_ctxt_init(&ctxt);
-    int ret = run_line_args(&ctxt, argc, argv);
-    int ret2 = run_ctxt_free(&ctxt);
+    int ret, ret2;
+
+    if ((ret = run_ctxt_init(&ctxt)) != 0)
+        return ret;
+    ret = run_line_args(&ctxt, argc, argv);
+    ret2 = run_ctxt_free(&ctxt);
     return ret == 0 ? ret2 : ret;
 }

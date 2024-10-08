@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/time.h>
 #include <unistd.h>
 #include <wordexp.h>
@@ -112,9 +113,17 @@ static const struct udotool_obj_id OPTLIST[] = {
     { "detach", CMD_OPT_DETACH },
     { NULL }
 };
+static const struct udotool_obj_id SPEC_WORDS[] = {
+    { "loop",    CMD_LOOP    },
+    { "endloop", CMD_ENDLOOP },
+    { NULL }
+};
 
 static const char  AXIS_KEYDOWN[] = "KEYDOWN";
 static const char  AXIS_KEYUP[]   = "KEYUP";
+
+static off_t ctxt_tell_line(struct udotool_exec_context *ctxt);
+static int   ctxt_jump_line(struct udotool_exec_context *ctxt, off_t offset);
 
 static const struct udotool_verb_info *find_verb(const char *verb) {
     for (const struct udotool_verb_info *info = KNOWN_VERBS; info->verb != NULL; info++)
@@ -288,42 +297,15 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
         log_message(-1, "%s: too many arguments", info->verb);
         return -1;
     }
-    if (ctxt->run_mode == 0) {
-        switch (info->cmd) {
-        case CMD_LOOP:
-            if (run_ctxt_cmd(ctxt, info, argc + arg0, argv - arg0) < 0)
-                return -1;
-            ctxt->depth++;
-            if (ctxt->depth >= MAX_LOOP_DEPTH) {
-                log_message(-1, "%s: too many levels (max %d)", info->verb, MAX_LOOP_DEPTH);
-                return -1;
-            }
-            return 0;
-        case CMD_ENDLOOP:
-            if (ctxt->depth == 0) {
-                log_message(-1, "%s: endloop without loop",info->verb);
-                return -1;
-            }
-            if (run_ctxt_cmd(ctxt, info, argc + arg0, argv - arg0) < 0)
-                return -1;
-            ctxt->depth--;
-            if (ctxt->depth == 0)
-                return run_ctxt_exec(ctxt);
-            return 0;
-        default:
-            if (ctxt->depth > 0)
-                return run_ctxt_cmd(ctxt, info, argc + arg0, argv - arg0);
-            break;
-        }
-    }
     int key;
     double value;
     struct timeval tval;
+    off_t offset;
     switch (info->cmd) {
     case CMD_HELP:
         return print_help(argc, argv);
     case CMD_LOOP:
-        // run_mode == 1, depth < (MAX_LOOP_DEPTH - 1)
+        // depth < (MAX_LOOP_DEPTH - 1)
         if (argc > 0) {
             if (parse_integer(info, argv[0], &repeat) < 0)
                 return -1;
@@ -342,10 +324,12 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
             repeat = INT_MAX;
         log_message(1, "%s: counter = %d, run time = %lu.%06lu", info->verb,
             repeat, (unsigned long)tval.tv_sec, (unsigned long)tval.tv_usec);
-        ctxt->stack[ctxt->depth++] = (struct udotool_loop){ .count = repeat, .rtime = tval, .backref = ctxt->ref };
+        if ((offset = ctxt_tell_line(ctxt)) == (off_t)-1)
+            return -1;
+        ctxt->stack[ctxt->depth++] = (struct udotool_loop){ .count = repeat, .rtime = tval, .offset = offset };
         return 0;
     case CMD_ENDLOOP:
-        // run_mode == 1, 0 < depth < MAX_LOOP_DEPTH
+        // 0 < depth < MAX_LOOP_DEPTH
         {
             struct udotool_loop *loop = &ctxt->stack[ctxt->depth - 1];
             loop->count--;
@@ -361,7 +345,9 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
             }
             log_message(1, "%s: continue, counter = %d, current time = %lu.%06lu", info->verb,
                 loop->count, (unsigned long)tval.tv_sec, (unsigned long)tval.tv_usec);
-            ctxt->ref = loop->backref;
+            int ret;
+            if ((ret = ctxt_jump_line(ctxt, loop->offset)) != 0)
+                return ret;
         }
         return 0;
     case CMD_SCRIPT:
@@ -503,6 +489,95 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
     return -1;
 }
 
+int run_ctxt_init(struct udotool_exec_context *ctxt) {
+    memset(ctxt, 0, sizeof(*ctxt));
+    if ((ctxt->mem_body = memfd_create("body", MFD_CLOEXEC)) < 0) {
+        log_message(-1, "error creating memfd: %s", strerror(errno));
+        return -1;
+    }
+    return 0;
+}
+
+int run_ctxt_free(struct udotool_exec_context *ctxt) {
+    int ret = 0;
+    if (ctxt->depth > 0) {
+        log_message(-1, "loop was not terminated, depth %zu", ctxt->depth);
+        ret = -1;
+    }
+    close(ctxt->mem_body);
+    memset(ctxt, 0, sizeof(*ctxt));
+    ctxt->mem_body = -1;
+    return ret;
+}
+
+static int ctxt_save_line(struct udotool_exec_context *ctxt, const char *line) {
+    size_t len = strlen(line);
+    if (write(ctxt->mem_body, &len, sizeof(len)) < 0 ||
+        write(ctxt->mem_body, line, len) < 0) {
+        log_message(-1, "error writing memfd: %s", strerror(errno));
+        return -1;
+    }
+    return 0;
+}
+
+static off_t ctxt_tell_line(struct udotool_exec_context *ctxt) {
+    off_t offset = lseek(ctxt->mem_body, 0, SEEK_CUR);
+    if (offset == (off_t)-1)
+        log_message(-1, "error telling memfd: %s", strerror(errno));
+    return offset;
+}
+
+static int ctxt_jump_line(struct udotool_exec_context *ctxt, off_t offset) {
+    if (lseek(ctxt->mem_body, offset, SEEK_SET) == (off_t)-1) {
+        log_message(-1, "error rewinding memfd: %s", strerror(errno));
+        return -1;
+    }
+    return 0;
+}
+
+static int ctxt_replay_lines(struct udotool_exec_context *ctxt) {
+    int ret;
+    if ((ret = ctxt_jump_line(ctxt, 0)) != 0)
+        return ret;
+    size_t len = 0;
+    ssize_t rlen;
+    char *line;
+    while ((rlen = read(ctxt->mem_body, &len, sizeof(len))) > 0) {
+        if (rlen != sizeof(len)) {
+ON_EOF_ERROR:
+            log_message(-1, "unexpected EOF while reading memfd");
+            ret = -1;
+            break;
+        }
+        if ((line = malloc(len + 1)) == NULL) {
+            log_message(-1, "not enough memory");
+            ret = -1;
+            break;
+        }
+        rlen = read(ctxt->mem_body, line, len);
+        ret = -1;
+        if (rlen == (ssize_t)len) {
+            line[len] = '\0';
+            ret = run_line(ctxt, line, 1);
+        }
+        free(line);
+        if (rlen < 0 || ret != 0)
+            break;
+        if (rlen != (ssize_t)len)
+            goto ON_EOF_ERROR;
+    }
+    if (rlen < 0) {
+        log_message(-1, "error reading memfd: %s", strerror(errno));
+        ret = -1;
+    }
+    ret = ctxt_jump_line(ctxt, 0);
+    if (ftruncate(ctxt->mem_body, 0) < 0) {
+        log_message(-1, "error truncating memfd: %s", strerror(errno));
+        ret = -1;
+    }
+    return ret;
+}
+
 int run_line_args(struct udotool_exec_context *ctxt, int argc, const char *const argv[]) {
     const char *verb;
     if (argc > 0) {
@@ -517,10 +592,51 @@ int run_line_args(struct udotool_exec_context *ctxt, int argc, const char *const
     return run_verb(ctxt, info, argc, argv);
 }
 
-int run_line(struct udotool_exec_context *ctxt, const char *line) {
+static int start_word(const char *line) {
+    const char *sep = getenv("IFS");
+    if (sep == NULL || *sep == '\0')
+        sep = " \t";
+    size_t slen = strcspn(line, sep);
+    if (slen == 0)
+        return -1;
+    for (const struct udotool_obj_id *word = SPEC_WORDS; word->name != NULL; word++)
+        if (strncmp(line, word->name, slen) == 0)
+            return word->value;
+    return -1;
+}
+
+int run_line(struct udotool_exec_context *ctxt, const char *line, int in_body) {
+    int ret;
+    if (in_body == 0) {
+        int wcode = start_word(line);
+        if (ctxt->depth > 0 || wcode == CMD_LOOP) {
+            if ((ret = ctxt_save_line(ctxt, line)) != 0)
+                return ret;
+            switch (wcode) {
+            case CMD_LOOP:
+                ctxt->depth++;
+                if (ctxt->depth >= MAX_LOOP_DEPTH) {
+                    log_message(-1, "loop: too many levels (max %d)", MAX_LOOP_DEPTH);
+                    return -1;
+                }
+                break;
+            case CMD_ENDLOOP:
+                if (ctxt->depth == 0) {
+                    log_message(-1, "endloop: endloop without loop");
+                    return -1;
+                }
+                ctxt->depth--;
+                if (ctxt->depth == 0)
+                    return ctxt_replay_lines(ctxt);
+            default:
+                break;
+            }
+            return 0;
+        }
+    }
     wordexp_t words;
     words.we_wordv = NULL;
-    int ret = wordexp(line, &words, WRDE_SHOWERR);
+    ret = wordexp(line, &words, WRDE_SHOWERR);
     if (ret != 0) {
         switch (ret) {
         case WRDE_BADCHAR:
@@ -542,77 +658,5 @@ int run_line(struct udotool_exec_context *ctxt, const char *line) {
     if (words.we_wordc > 0) // Empty line can be a result of expansion
         ret = run_line_args(ctxt, words.we_wordc, (const char *const*)words.we_wordv);
     wordfree(&words);
-    return ret;
-}
-
-int run_ctxt_exec(struct udotool_exec_context *ctxt) {
-    ctxt->run_mode = 1;
-    int ret = 0;
-    for (ctxt->ref = 0; ctxt->ref < ctxt->size; ctxt->ref++) {
-        struct udotool_cmd *cmd = &ctxt->cmds[ctxt->ref];
-        if ((ret = run_verb(ctxt, cmd->info, cmd->argc, cmd->argv)) < 0)
-            break;
-    }
-    int ret2 = run_ctxt_free(ctxt);
-    return ret == 0 ? ret2 : ret;
-}
-
-int run_ctxt_cmd(struct udotool_exec_context *ctxt, const struct udotool_verb_info *info,
-                 int argc, const char *const argv[]) {
-    const char ** argv_new = NULL;
-    if (argc > 0) {
-        size_t arg_size = (argc + 1) * sizeof(char *);
-        for (int i = 0; i < argc; i++)
-            if (argv[i] != NULL)
-                arg_size += strlen(argv[i]) + 1;
-        char *argp = malloc(arg_size);
-        if (argp == NULL) {
-            log_message(-1, "not enough memory");
-            return -1;
-        }
-        argv_new = (const char **)argp;
-        argp += (argc + 1) * sizeof(char *);
-        for (int i = 0; i < argc; i++) {
-            if (argv[i] == NULL)
-                argv_new[i] = NULL;
-            else {
-                argv_new[i] = argp;
-                strcpy(argp, argv[i]);
-                argp += strlen(argv[i]) + 1;
-            }
-        }
-        argv_new[argc] = NULL;
-    }
-    if (ctxt->size >= ctxt->max_size) {
-        size_t size_new = ctxt->max_size + 16;
-        struct udotool_cmd *cmds_new = realloc(ctxt->cmds, size_new * sizeof(*cmds_new));
-        if (cmds_new == NULL) {
-            free(argv_new);
-            log_message(-1, "not enough memory");
-            return -1;
-        }
-        ctxt->max_size = size_new;
-        ctxt->cmds = cmds_new;
-    }
-    ctxt->cmds[ctxt->size++] = (struct udotool_cmd){ .info = info, .argc = argc, .argv = argv_new };
-    return 0;
-}
-
-void run_ctxt_init(struct udotool_exec_context *ctxt) {
-    memset(ctxt, 0, sizeof(*ctxt));
-}
-
-int run_ctxt_free(struct udotool_exec_context *ctxt) {
-    int ret = 0;
-    if (ctxt->depth > 0) {
-        log_message(-1, "loop was not terminated, depth %zu", ctxt->depth);
-        ret = -1;
-    }
-    if (ctxt->cmds != NULL) {
-        for (size_t i = 0; i < ctxt->size; i++)
-            free((void *)ctxt->cmds[i].argv);
-        free(ctxt->cmds);
-    }
-    memset(ctxt, 0, sizeof(*ctxt));
     return ret;
 }

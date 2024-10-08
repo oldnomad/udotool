@@ -25,32 +25,21 @@ struct udotool_loop {
     int         count;
     struct timeval
                 rtime;
-    size_t      backref;
+    off_t       offset;
 };
 
 struct udotool_exec_context {
     const char *filename;
     unsigned    lineno;
 
-    int         run_mode;
-    size_t      ref;
-
+    int         mem_body;
     size_t      depth;
     struct udotool_loop
                 stack[MAX_LOOP_DEPTH];
-
-    size_t      max_size;
-    size_t      size;
-    struct udotool_cmd
-               *cmds;
 };
 
+int run_ctxt_init(struct udotool_exec_context *ctxt);
+int run_ctxt_free(struct udotool_exec_context *ctxt);
+
 int run_line_args(struct udotool_exec_context *ctxt, int argc, const char *const argv[]);
-int run_line(struct udotool_exec_context *ctxt, const char *line);
-
-void run_ctxt_init(struct udotool_exec_context *ctxt);
-int  run_ctxt_free(struct udotool_exec_context *ctxt);
-
-int run_ctxt_exec(struct udotool_exec_context *ctxt);
-int run_ctxt_cmd(struct udotool_exec_context *ctxt, const struct udotool_verb_info *info,
-                 int argc, const char *const argv[]);
+int run_line(struct udotool_exec_context *ctxt, const char *line, int in_body);

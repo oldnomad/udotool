@@ -15,8 +15,7 @@ Following rules apply throughout all commands:
   and section **Shell & Utilities**
   [2 Shell Command Language](https://pubs.opengroup.org/onlinepubs/9799919799.2024edition/utilities/V3_chap02.html#tag_19_06),
   subsections **2.6 Word Expansion** and **2.2 Quoting**.
-  Note that at least in `glibc` version 2.40, `wordexp(3)` doesn't
-  support "dollar-single-quotes" quoting style, introduced in POSIX.1-2024.
+  See also caveats below.
 - All delays and times are specified in seconds. Minimum
   time is **0.001** (1 millisecond), maximum is **86400** (1 day).
 - Values for relative axes are specified in units, usually
@@ -33,6 +32,16 @@ Following rules apply throughout all commands:
   full range is `1000000` (one million), so `1` corresponds to
   exact value `10000` (ten thousand), and `0.0042` corresponds to
   exact value `42`.
+
+When using word expansion in scripts, you should remember some caveats:
+
+- In `glibc` version 2.40 (and earlier), `wordexp(3)` doesn't yet support
+  "dollar-single-quotes" quoting style, introduced in POSIX.1-2024.
+- If word expansion produces newline characters, they will _not_ be treated
+  as line separators, but as regular whitespace.
+- If word expansion produces new flow control commands (`loop` or `endloop`),
+  result is _unpredictable_. You can, however, use word expansion in
+  parameters of these commands.
 
 Environment available to `udotool` script and to all commands invoked
 from it contains all environment variables available to `udotool` itself,
