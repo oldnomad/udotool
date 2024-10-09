@@ -5,16 +5,11 @@
  * Copyright (c) 2024 Alec Kojaev
  */
 #include <errno.h>
-#include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef UDOTOOL_NOMMAN_TWEAK
-#include <sys/mman.h>
-#endif // !UDOTOOL_NOMMAN_TWEAK
 #include <sys/time.h>
-#include <unistd.h>
 #include <wordexp.h>
 
 #include "udotool.h"
@@ -124,9 +119,6 @@ static const struct udotool_obj_id SPEC_WORDS[] = {
 
 static const char  AXIS_KEYDOWN[] = "KEYDOWN";
 static const char  AXIS_KEYUP[]   = "KEYUP";
-
-static off_t ctxt_tell_line(struct udotool_exec_context *ctxt);
-static int   ctxt_jump_line(struct udotool_exec_context *ctxt, off_t offset);
 
 static const struct udotool_verb_info *find_verb(const char *verb) {
     for (const struct udotool_verb_info *info = KNOWN_VERBS; info->verb != NULL; info++)
@@ -327,7 +319,7 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
             repeat = INT_MAX;
         log_message(1, "%s: counter = %d, run time = %lu.%06lu", info->verb,
             repeat, (unsigned long)tval.tv_sec, (unsigned long)tval.tv_usec);
-        if ((offset = ctxt_tell_line(ctxt)) == (off_t)-1)
+        if ((offset = run_ctxt_tell_line(ctxt)) == (off_t)-1)
             return -1;
         ctxt->stack[ctxt->depth++] = (struct udotool_loop){ .count = repeat, .rtime = tval, .offset = offset };
         return 0;
@@ -349,7 +341,7 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
             log_message(1, "%s: continue, counter = %d, current time = %lu.%06lu", info->verb,
                 loop->count, (unsigned long)tval.tv_sec, (unsigned long)tval.tv_usec);
             int ret;
-            if ((ret = ctxt_jump_line(ctxt, loop->offset)) != 0)
+            if ((ret = run_ctxt_jump_line(ctxt, loop->offset)) != 0)
                 return ret;
         }
         return 0;
@@ -492,102 +484,6 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
     return -1;
 }
 
-int run_ctxt_init(struct udotool_exec_context *ctxt) {
-    memset(ctxt, 0, sizeof(*ctxt));
-#ifndef UDOTOOL_NOMMAN_TWEAK
-    if ((ctxt->body = memfd_create("body", MFD_CLOEXEC)) < 0) {
-#else
-    if ((ctxt->body = open("/tmp", O_TMPFILE|O_RDWR|O_EXCL)) < 0) {
-#endif
-        log_message(-1, "error creating body storage: %s", strerror(errno));
-        return -1;
-    }
-    return 0;
-}
-
-int run_ctxt_free(struct udotool_exec_context *ctxt) {
-    int ret = 0;
-    if (ctxt->depth > 0) {
-        log_message(-1, "loop was not terminated, depth %zu", ctxt->depth);
-        ret = -1;
-    }
-    close(ctxt->body);
-    memset(ctxt, 0, sizeof(*ctxt));
-    ctxt->body = -1;
-    return ret;
-}
-
-static int ctxt_save_line(struct udotool_exec_context *ctxt, const char *line) {
-    size_t len = strlen(line);
-    if (write(ctxt->body, &len, sizeof(len)) < 0 ||
-        write(ctxt->body, line, len) < 0) {
-        log_message(-1, "error writing body storage: %s", strerror(errno));
-        return -1;
-    }
-    return 0;
-}
-
-static off_t ctxt_tell_line(struct udotool_exec_context *ctxt) {
-    off_t offset = lseek(ctxt->body, 0, SEEK_CUR);
-    if (offset == (off_t)-1)
-        log_message(-1, "error telling body storage: %s", strerror(errno));
-    return offset;
-}
-
-static int ctxt_jump_line(struct udotool_exec_context *ctxt, off_t offset) {
-    if (lseek(ctxt->body, offset, SEEK_SET) == (off_t)-1) {
-        log_message(-1, "error rewinding body storage: %s", strerror(errno));
-        return -1;
-    }
-    return 0;
-}
-
-static int ctxt_drop_lines(struct udotool_exec_context *ctxt) {
-    if (ftruncate(ctxt->body, 0) < 0) {
-        log_message(-1, "error truncating body storage: %s", strerror(errno));
-        return -1;
-    }
-    return ctxt_jump_line(ctxt, 0);
-}
-
-static int ctxt_replay_lines(struct udotool_exec_context *ctxt) {
-    int ret;
-    if ((ret = ctxt_jump_line(ctxt, 0)) != 0)
-        return ret;
-    size_t len = 0;
-    ssize_t rlen;
-    char *line;
-    while ((rlen = read(ctxt->body, &len, sizeof(len))) > 0) {
-        if (rlen != sizeof(len)) {
-ON_EOF_ERROR:
-            log_message(-1, "unexpected EOF while reading body storage");
-            ret = -1;
-            break;
-        }
-        if ((line = malloc(len + 1)) == NULL) {
-            log_message(-1, "not enough memory");
-            ret = -1;
-            break;
-        }
-        rlen = read(ctxt->body, line, len);
-        ret = -1;
-        if (rlen == (ssize_t)len) {
-            line[len] = '\0';
-            ret = run_line(ctxt, line, 1);
-        }
-        free(line);
-        if (rlen < 0 || ret != 0)
-            break;
-        if (rlen != (ssize_t)len)
-            goto ON_EOF_ERROR;
-    }
-    if (rlen < 0) {
-        log_message(-1, "error reading body storage: %s", strerror(errno));
-        ret = -1;
-    }
-    return ctxt_drop_lines(ctxt);
-}
-
 int run_line_args(struct udotool_exec_context *ctxt, int argc, const char *const argv[]) {
     const char *verb;
     if (argc > 0) {
@@ -622,7 +518,7 @@ static int process_body(struct udotool_exec_context *ctxt, const char *line, int
     if (ctxt->depth == 0 && wcode != CMD_LOOP)
         return +1;
     int ret;
-    if ((ret = ctxt_save_line(ctxt, line)) != 0)
+    if ((ret = run_ctxt_save_line(ctxt, line)) != 0)
         return ret;
     switch (wcode) {
     case CMD_LOOP:
@@ -639,7 +535,7 @@ static int process_body(struct udotool_exec_context *ctxt, const char *line, int
         }
         ctxt->depth--;
         if (ctxt->depth == 0)
-            return ctxt_replay_lines(ctxt);
+            return run_ctxt_replay_lines(ctxt);
     default:
         break;
     }
