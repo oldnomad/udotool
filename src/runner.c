@@ -5,11 +5,14 @@
  * Copyright (c) 2024 Alec Kojaev
  */
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef UDOTOOL_NOMMAN_TWEAK
 #include <sys/mman.h>
+#endif // !UDOTOOL_NOMMAN_TWEAK
 #include <sys/time.h>
 #include <unistd.h>
 #include <wordexp.h>
@@ -491,8 +494,12 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
 
 int run_ctxt_init(struct udotool_exec_context *ctxt) {
     memset(ctxt, 0, sizeof(*ctxt));
-    if ((ctxt->mem_body = memfd_create("body", MFD_CLOEXEC)) < 0) {
-        log_message(-1, "error creating memfd: %s", strerror(errno));
+#ifndef UDOTOOL_NOMMAN_TWEAK
+    if ((ctxt->body = memfd_create("body", MFD_CLOEXEC)) < 0) {
+#else
+    if ((ctxt->body = open("/tmp", O_TMPFILE|O_RDWR|O_EXCL)) < 0) {
+#endif
+        log_message(-1, "error creating body storage: %s", strerror(errno));
         return -1;
     }
     return 0;
@@ -504,35 +511,43 @@ int run_ctxt_free(struct udotool_exec_context *ctxt) {
         log_message(-1, "loop was not terminated, depth %zu", ctxt->depth);
         ret = -1;
     }
-    close(ctxt->mem_body);
+    close(ctxt->body);
     memset(ctxt, 0, sizeof(*ctxt));
-    ctxt->mem_body = -1;
+    ctxt->body = -1;
     return ret;
 }
 
 static int ctxt_save_line(struct udotool_exec_context *ctxt, const char *line) {
     size_t len = strlen(line);
-    if (write(ctxt->mem_body, &len, sizeof(len)) < 0 ||
-        write(ctxt->mem_body, line, len) < 0) {
-        log_message(-1, "error writing memfd: %s", strerror(errno));
+    if (write(ctxt->body, &len, sizeof(len)) < 0 ||
+        write(ctxt->body, line, len) < 0) {
+        log_message(-1, "error writing body storage: %s", strerror(errno));
         return -1;
     }
     return 0;
 }
 
 static off_t ctxt_tell_line(struct udotool_exec_context *ctxt) {
-    off_t offset = lseek(ctxt->mem_body, 0, SEEK_CUR);
+    off_t offset = lseek(ctxt->body, 0, SEEK_CUR);
     if (offset == (off_t)-1)
-        log_message(-1, "error telling memfd: %s", strerror(errno));
+        log_message(-1, "error telling body storage: %s", strerror(errno));
     return offset;
 }
 
 static int ctxt_jump_line(struct udotool_exec_context *ctxt, off_t offset) {
-    if (lseek(ctxt->mem_body, offset, SEEK_SET) == (off_t)-1) {
-        log_message(-1, "error rewinding memfd: %s", strerror(errno));
+    if (lseek(ctxt->body, offset, SEEK_SET) == (off_t)-1) {
+        log_message(-1, "error rewinding body storage: %s", strerror(errno));
         return -1;
     }
     return 0;
+}
+
+static int ctxt_drop_lines(struct udotool_exec_context *ctxt) {
+    if (ftruncate(ctxt->body, 0) < 0) {
+        log_message(-1, "error truncating body storage: %s", strerror(errno));
+        return -1;
+    }
+    return ctxt_jump_line(ctxt, 0);
 }
 
 static int ctxt_replay_lines(struct udotool_exec_context *ctxt) {
@@ -542,10 +557,10 @@ static int ctxt_replay_lines(struct udotool_exec_context *ctxt) {
     size_t len = 0;
     ssize_t rlen;
     char *line;
-    while ((rlen = read(ctxt->mem_body, &len, sizeof(len))) > 0) {
+    while ((rlen = read(ctxt->body, &len, sizeof(len))) > 0) {
         if (rlen != sizeof(len)) {
 ON_EOF_ERROR:
-            log_message(-1, "unexpected EOF while reading memfd");
+            log_message(-1, "unexpected EOF while reading body storage");
             ret = -1;
             break;
         }
@@ -554,7 +569,7 @@ ON_EOF_ERROR:
             ret = -1;
             break;
         }
-        rlen = read(ctxt->mem_body, line, len);
+        rlen = read(ctxt->body, line, len);
         ret = -1;
         if (rlen == (ssize_t)len) {
             line[len] = '\0';
@@ -567,15 +582,10 @@ ON_EOF_ERROR:
             goto ON_EOF_ERROR;
     }
     if (rlen < 0) {
-        log_message(-1, "error reading memfd: %s", strerror(errno));
+        log_message(-1, "error reading body storage: %s", strerror(errno));
         ret = -1;
     }
-    ret = ctxt_jump_line(ctxt, 0);
-    if (ftruncate(ctxt->mem_body, 0) < 0) {
-        log_message(-1, "error truncating memfd: %s", strerror(errno));
-        ret = -1;
-    }
-    return ret;
+    return ctxt_drop_lines(ctxt);
 }
 
 int run_line_args(struct udotool_exec_context *ctxt, int argc, const char *const argv[]) {
@@ -605,35 +615,41 @@ static int start_word(const char *line) {
     return -1;
 }
 
+static int process_body(struct udotool_exec_context *ctxt, const char *line, int in_body) {
+    if (in_body != 0)
+        return +1;
+    int wcode = start_word(line);
+    if (ctxt->depth == 0 && wcode != CMD_LOOP)
+        return +1;
+    int ret;
+    if ((ret = ctxt_save_line(ctxt, line)) != 0)
+        return ret;
+    switch (wcode) {
+    case CMD_LOOP:
+        ctxt->depth++;
+        if (ctxt->depth >= MAX_LOOP_DEPTH) {
+            log_message(-1, "loop: too many levels (max %d)", MAX_LOOP_DEPTH);
+            return -1;
+        }
+        break;
+    case CMD_ENDLOOP:
+        if (ctxt->depth == 0) {
+            log_message(-1, "endloop: endloop without loop");
+            return -1;
+        }
+        ctxt->depth--;
+        if (ctxt->depth == 0)
+            return ctxt_replay_lines(ctxt);
+    default:
+        break;
+    }
+    return 0;
+}
+
 int run_line(struct udotool_exec_context *ctxt, const char *line, int in_body) {
     int ret;
-    if (in_body == 0) {
-        int wcode = start_word(line);
-        if (ctxt->depth > 0 || wcode == CMD_LOOP) {
-            if ((ret = ctxt_save_line(ctxt, line)) != 0)
-                return ret;
-            switch (wcode) {
-            case CMD_LOOP:
-                ctxt->depth++;
-                if (ctxt->depth >= MAX_LOOP_DEPTH) {
-                    log_message(-1, "loop: too many levels (max %d)", MAX_LOOP_DEPTH);
-                    return -1;
-                }
-                break;
-            case CMD_ENDLOOP:
-                if (ctxt->depth == 0) {
-                    log_message(-1, "endloop: endloop without loop");
-                    return -1;
-                }
-                ctxt->depth--;
-                if (ctxt->depth == 0)
-                    return ctxt_replay_lines(ctxt);
-            default:
-                break;
-            }
-            return 0;
-        }
-    }
+    if ((ret = process_body(ctxt, line, in_body)) <= 0)
+        return ret;
     wordexp_t words;
     words.we_wordv = NULL;
     ret = wordexp(line, &words, WRDE_SHOWERR);

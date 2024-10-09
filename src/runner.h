@@ -32,7 +32,7 @@ struct udotool_exec_context {
     const char *filename;
     unsigned    lineno;
 
-    int         mem_body;
+    int         body;
     size_t      depth;
     struct udotool_loop
                 stack[MAX_LOOP_DEPTH];

@@ -4,12 +4,14 @@ GIT       = /usr/bin/git
 ENVSUBST  = /usr/bin/envsubst
 
 QUIRKS    = LIBINPUT
+TWEAKS    =
 
 CFLAGS   += -D_GNU_SOURCE \
     -Wall -Wextra -pedantic -Wshadow -Wunused -Wuninitialized \
     -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes \
     -Wformat=2 -Wformat-overflow=2 -Wformat-truncation=2 -Wformat-signedness
 CFLAGS   += $(foreach quirk,$(QUIRKS),-DUDOTOOL_$(quirk)_QUIRK)
+CFLAGS   += $(foreach tweak,$(TWEAKS),-DUDOTOOL_$(tweak)_TWEAK)
 
 SRC_FILES = $(wildcard *.c)
 HDR_FILES = $(wildcard *.h) config.h
