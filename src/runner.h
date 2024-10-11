@@ -21,7 +21,7 @@ struct udotool_cmd {
                 argv;
 };
 
-struct udotool_loop {
+struct udotool_ctrl {
     int         count;
     struct timeval
                 rtime;
@@ -34,8 +34,8 @@ struct udotool_exec_context {
 
     int         body;
     size_t      depth;
-    struct udotool_loop
-                stack[MAX_LOOP_DEPTH];
+    struct udotool_ctrl
+                stack[MAX_CTRL_DEPTH];
 };
 
 int   run_ctxt_init(struct udotool_exec_context *ctxt);

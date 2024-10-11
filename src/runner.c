@@ -324,12 +324,12 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
             repeat, (unsigned long)tval.tv_sec, (unsigned long)tval.tv_usec);
         if ((offset = run_ctxt_tell_line(ctxt)) == (off_t)-1)
             return -1;
-        ctxt->stack[ctxt->depth++] = (struct udotool_loop){ .count = repeat, .rtime = tval, .offset = offset };
+        ctxt->stack[ctxt->depth++] = (struct udotool_ctrl){ .count = repeat, .rtime = tval, .offset = offset };
         return 0;
     case CMD_ENDLOOP:
         // 0 < depth < MAX_LOOP_DEPTH
         {
-            struct udotool_loop *loop = &ctxt->stack[ctxt->depth - 1];
+            struct udotool_ctrl *loop = &ctxt->stack[ctxt->depth - 1];
             loop->count--;
             if (gettimeofday(&tval, NULL) < 0) {
                 log_message(-1, "%s: cannot get current time: %s", info->verb, strerror(errno));
@@ -526,8 +526,8 @@ static int process_body(struct udotool_exec_context *ctxt, const char *line, int
     switch (wcode) {
     case CMD_LOOP:
         ctxt->depth++;
-        if (ctxt->depth >= MAX_LOOP_DEPTH) {
-            log_message(-1, "loop: too many levels (max %d)", MAX_LOOP_DEPTH);
+        if (ctxt->depth >= MAX_CTRL_DEPTH) {
+            log_message(-1, "loop: too many levels (max %d)", MAX_CTRL_DEPTH);
             return -1;
         }
         break;
