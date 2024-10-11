@@ -102,14 +102,11 @@ from a script contains all environment variables available to
  **-axis** and **-keys** will make **help** print lists of known
  axes and keys, correspondingly.
 
-**loop** [**-time** _seconds_] [_num_]
-:   Execute commands between **loop** and corresponding **endloop**
+**loop** [**-time** _seconds_] [_num_] &lt;NL&gt; ... &lt;NL&gt; **endloop**
+:   Execute lines between **loop** and corresponding **endloop**
  no more than _num_ times. If option **-time** is specified, the
  loop will be repeated for no more than specified time. Loops may
  be embedded, but maximum stack depth is limited.
-
-**endloop**
-:   End corresponding **loop** block.
 
 ## Input emulation commands
 

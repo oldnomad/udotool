@@ -128,11 +128,13 @@ Special topics are:
 If no topic is specified, `help` prints help on all known
 commands.
 
+## Flow control commands
+
 ### LOOP/ENDLOOP
 
-Syntax: `loop [-time <TIME>] [<NUMBER>] ... endloop`
+Syntax: `loop [-time <TIME>] [<NUMBER>] <NL> ... <NL> endloop`
 
-This pair of commands creates a loop of commands.
+This pair of commands creates a loop of command lines.
 
 The loop may have a number of repetitions, a repetition time,
 or both.

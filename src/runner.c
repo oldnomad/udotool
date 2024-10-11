@@ -77,11 +77,11 @@ static const struct udotool_verb_info KNOWN_VERBS[] = {
       "<axis>=<value>...",
       "Generate a packet of input values." },
     { "loop",     CMD_LOOP,     0,  1, HAS_OPTION(TIME),
-      "[-time <seconds>] [<N>]",
-      "Repeat following commands until nearest 'endloop'." },
+      "[-time <seconds>] [<N>]\n ...\nendloop",
+      "Repeat a block of commands." },
     { "endloop",  CMD_ENDLOOP,  0,  0, 0,
-      "",
-      "End current loop." },
+      NULL,
+      NULL },
     { "sleep",    CMD_SLEEP,    1,  1, 0,
       "<seconds>",
       "Sleep for specified time." },
@@ -180,7 +180,10 @@ static int print_help(int argc, const char *const argv[]) {
 
     if (argc <= 0 || argv == NULL) {
         for (const struct udotool_verb_info *info = KNOWN_VERBS; info->verb != NULL; info++)
-            printf(HELP_FMT, info->verb, info->usage, info->description);
+            if (info->usage != NULL && info->description != NULL) {
+                printf(HELP_FMT, info->verb, info->usage, info->description);
+                putchar('\n');
+            }
         return 0;
     }
     for (int i = 0; i < argc; i++) {
@@ -201,7 +204,7 @@ static int print_help(int argc, const char *const argv[]) {
             continue;
         }
         const struct udotool_verb_info *info = find_verb(argv[i]);
-        if (info != NULL)
+        if (info != NULL && info->usage != NULL && info->description != NULL)
             printf(HELP_FMT, info->verb, info->usage, info->description);
     }
     return 0;
