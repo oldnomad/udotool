@@ -12,6 +12,7 @@
 #define DEFAULT_SLEEP_SEC     0.050 // Default loop delay
 
 #define MAX_CTRL_DEPTH           16 // Maximum flow control stack depth
+#define MAX_EVAL_DEPTH           16 // Maximum evaluation stack depth
 
 #define UINPUT_ABS_MAXVALUE 1000000 // Maximum absolute position
 

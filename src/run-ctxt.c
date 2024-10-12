@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
- * Command execution
+ * Command execution context
  *
  * Copyright (c) 2024 Alec Kojaev
  */

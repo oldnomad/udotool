@@ -13,16 +13,20 @@ CFLAGS   += -D_GNU_SOURCE \
 CFLAGS   += $(foreach quirk,$(QUIRKS),-DUDOTOOL_$(quirk)_QUIRK)
 CFLAGS   += $(foreach tweak,$(TWEAKS),-DUDOTOOL_$(tweak)_TWEAK)
 
-SRC_FILES = $(wildcard *.c)
-HDR_FILES = $(wildcard *.h) config.h
-OBJ_FILES = $(patsubst %.c,%.o,$(SRC_FILES))
-EXE_FILE  = udotool
-MAN_FILE  = udotool.man
+SRC_FILES  = $(wildcard *.c)
+HDR_FILES  = $(wildcard *.h) config.h
+OBJ_FILES  = $(patsubst %.c,%.o,$(SRC_FILES))
+EXE_FILE   = udotool
+MAN_FILE   = udotool.man
+TEST_FILES = run-eval
 
 all: $(EXE_FILE) $(MAN_FILE)
 
 $(EXE_FILE): $(OBJ_FILES)
 	$(CC) $(LDFLAGS) $(OBJ_FILES) -o $@
+
+run-eval: run-eval.c
+	$(CC) $(LDFLAGS) $(CFLAGS) -DRUN_EVAL_TEST $^ -o $@
 
 $(OBJ_FILES): $(HDR_FILES)
 
@@ -43,7 +47,7 @@ install: $(EXE_FILE) $(MAN_FILE)
 	$(INSTALL) -D -t $(DESTDIR)$(prefix)/bin $(EXE_FILE)
 
 clean:
-	-$(RM) *.o $(EXE_FILE) $(MAN_FILE)
+	-$(RM) *.o $(EXE_FILE) $(MAN_FILE) $(TEST_FILES)
 
 distclean: clean
 	-$(RM) config.h

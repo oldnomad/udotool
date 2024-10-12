@@ -74,5 +74,9 @@ int   run_ctxt_jump_line(struct udotool_exec_context *ctxt, off_t offset);
 int   run_ctxt_save_line(struct udotool_exec_context *ctxt, const char *line);
 int   run_ctxt_replay_lines(struct udotool_exec_context *ctxt);
 
+int run_parse_double(const struct udotool_verb_info *info, const char *text, double *pval);
+int run_parse_integer(const struct udotool_verb_info *info, const char *text, int *pval);
+int run_parse_condition(const struct udotool_verb_info *info, int argc, const char *const* argv, int *pval);
+
 const struct udotool_verb_info *run_find_verb(const char *verb);
 int run_line_args(struct udotool_exec_context *ctxt, int argc, const char *const argv[]);

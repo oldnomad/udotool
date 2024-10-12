@@ -58,6 +58,24 @@ plus following variables:
   need it before any input emulation command, you should use `udotool`
   command `open` (see below).
 
+### Condition expressions
+
+Command `if` supports condition expressions which may include parenthesized
+expressions and following operators (in order of decreasing precedence):
+
+- `-not` for unary logical negation.
+- `-lt`, `-gt`, `-le`, and `-ge` for numeric comparisons.
+- `-eq` and `-ne` for equality comparisons.
+- `-and` for logical conjunction.
+- `-or` for logical disjunction.
+
+Parameters of all operators should be numeric (floating-point or integer).
+Arithmetic operators are not supported, use arithmetic expansion if you
+need them.
+
+When numbers occur in logical context, zero is false, and any non-zero
+value is true.
+
 ## Generic commands
 
 Generic commands are not related to input emulation directly. They are
@@ -172,14 +190,13 @@ be at most 60.
 
 ### IF/ELSE
 
-Syntax: `if <NUMBER> <NL> ... <NL> [else <NL> ... <NL>] end`
+Syntax: `if <CONDITION> <NL> ... <NL> [else <NL> ... <NL>] end`
 
 These commands create conditional blocks of commands.
 
 The commands in the "if" block will be executed only if
-`<NUMBER>` is a non-zero integer.
-
-If `<NUMBER>` is not an integer, an error will be raised.
+`<CONDITION>` expression is true. See above for syntax of
+condition expression.
 
 The commands in the "else" block, if present, will be executed if
 "if" block is not executed.
@@ -187,16 +204,16 @@ The commands in the "else" block, if present, will be executed if
 For example:
 
 ```
-if $(( $XCURSOR_SIZE - 24 ))
+if "$XCURSOR_SIZE" -lt 24
     move "+$XCURSOR_SIZE" 0
 else
-    move +25 0
+    move +24 0
 endif
 ```
 
-This will emulate moving the mouse 25 pixels to the right if
-environment variable `XCURSOR_SIZE` is 24, otherwise the mouse
-will move `$XCURSOR_SIZE` pixels to the right.
+This will emulate moving the mouse `$XCURSOR_SIZE` pixels to the
+right if environment variable `XCURSOR_SIZE` is less than 24,
+otherwise the mouse will move 24 pixels to the right.
 
 ### EXIT
 

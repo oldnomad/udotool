@@ -108,9 +108,10 @@ from a script contains all environment variables available to
  loop will be repeated for no more than specified time.
 
 **if** _cond_ &lt;NL&gt; ... &lt;NL&gt; [**else** &lt;NL&gt; ... &lt;NL&gt;] **end**
-:   Execute lines conditionally. If _cond_ is a non-zero integer,
- execute the block of lines after **if**, otherwise skip it, and
- execute the block of lines after **else** (if specified).
+:   Execute lines conditionally. If _cond_ is true, execute the
+ block of lines after **if**, otherwise skip it, and execute the
+ block of lines after **else** (if specified). See section
+ **CONDITIONS** below for syntax of conditions.
 
 **exit**
 :   Terminate execution of current script.
@@ -195,6 +196,30 @@ Command lines are subject to POSIX-compatible word expansion and
 quote removal. That means that you can use all features (single quote,
 double quote, command substitution, and so on) available in standard
 POSIX-compatible shell.
+
+# CONDITIONS
+
+Command **if** supports condition expressions with following
+syntax (EBNF):
+
+```
+<condition>  := <or-term> "-or" <condition> | <or-term>
+<or-term>    := <and-term> "-and" <or-term> | <and-term>
+<and-term>   := <comparison>
+<comparison> := <value> CMP_OP <value> | <value>
+<value>      := "-not" <value> | "(" <condition> ")" | NUMBER
+```
+
+Here _NUMBER_ is a floating-point or integer number, and _CMP_OP_ is
+one of: "-eq", "-ne", "-lt", "-gt", "-le", or "-ge".
+
+For example:
+
+```
+if -not '(' "$a" -eq 1 -and "$b" -gt 2 ')' -or "$b" -gt 3
+  echo "Either $b is greater then 3, or it's not true that $a is 1 and $b is greater than 2"
+end
+```
 
 # VALUE UNITS
 

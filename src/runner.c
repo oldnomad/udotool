@@ -55,8 +55,8 @@ static const struct udotool_verb_info KNOWN_VERBS[] = {
     { "loop",     CMD_LOOP,     0,  1, HAS_OPTION(TIME),
       "[-time <seconds>] [<N>]\n ...\nend",
       "Repeat a block of commands." },
-    { "if",       CMD_IF,       1,  1, 0,
-      "<cond>\n ...\n[else\n ...]\nend",
+    { "if",       CMD_IF,       1, -1, 0,
+      "<condition>\n ...\n[else\n ...]\nend",
       "Execute a block of commands under condition." },
     { "else",     CMD_ELSE,     0,  0, 0,
       NULL,
@@ -108,31 +108,9 @@ const struct udotool_verb_info *run_find_verb(const char *verb) {
     return NULL;
 }
 
-static int parse_double(const struct udotool_verb_info *info, const char *text, double *pval) {
-    const char *ep = text;
-    double value = strtod(text, (char **)&ep);
-    if (ep == text || *ep != '\0') {
-        log_message(-1, "%s: error parsing value '%s'", info->verb, text);
-        return -1;
-    }
-    *pval = value;
-    return 0;
-}
-
-static int parse_integer(const struct udotool_verb_info *info, const char *text, int *pval) {
-    const char *ep = text;
-    long value = strtol(text, (char **)&ep, 0);
-    if (ep == text || *ep != '\0' || value < INT_MIN || value > INT_MAX) {
-        log_message(-1, "%s: error parsing value '%s'", info->verb, text);
-        return -1;
-    }
-    *pval = (int)value;
-    return 0;
-}
-
 static int parse_abs_value(const struct udotool_verb_info *info, const char *text, double *pval) {
     double value = 0;
-    if (parse_double(info, text, &value) < 0)
+    if (run_parse_double(info, text, &value) < 0)
         return -1;
     value /= 100.0;
     if (value < 0 || value > 1.0) {
@@ -145,7 +123,7 @@ static int parse_abs_value(const struct udotool_verb_info *info, const char *tex
 
 static int parse_rel_value(const struct udotool_verb_info *info, const char *text, double *pval) {
     double value = 0;
-    if (parse_double(info, text, &value) < 0)
+    if (run_parse_double(info, text, &value) < 0)
         return -1;
     if (value < INT_MIN || value > INT_MAX) {
         log_message(-1, "%s: value is out of range in '%s'", info->verb, text);
@@ -227,7 +205,7 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
                 log_message(-1, "%s: missing parameter for option %s", info->verb, argv[arg0]);
                 return -1;
             }
-            if (parse_integer(info, argv[++arg0], &repeat) < 0)
+            if (run_parse_integer(info, argv[++arg0], &repeat) < 0)
                 return -1;
             if (repeat <= 0) {
                 log_message(-1, "%s: repeat value is out of range: %s", info->verb, argv[arg0]);
@@ -237,7 +215,7 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
         case CMD_OPT_TIME:
             if ((arg0 + 1) >= argc)
                 goto ON_NO_OPTVAL;
-            if (parse_double(info, argv[++arg0], &rtime) < 0)
+            if (run_parse_double(info, argv[++arg0], &rtime) < 0)
                 return -1;
             if (rtime <= MIN_SLEEP_SEC || rtime > MAX_SLEEP_SEC) {
                 log_message(-1, "%s: run time value is out of range: %s", info->verb, argv[arg0]);
@@ -247,7 +225,7 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
         case CMD_OPT_DELAY:
             if ((arg0 + 1) >= argc)
                 goto ON_NO_OPTVAL;
-            if (parse_double(info, argv[++arg0], &delay) < 0)
+            if (run_parse_double(info, argv[++arg0], &delay) < 0)
                 return -1;
             if (delay <= MIN_SLEEP_SEC || delay > MAX_SLEEP_SEC) {
                 log_message(-1, "%s: delay value is out of range: %s", info->verb, argv[arg0]);
@@ -285,7 +263,7 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
         return print_help(argc, argv);
     case CMD_LOOP:
         if (argc > 0) {
-            if (parse_integer(info, argv[0], &repeat) < 0)
+            if (run_parse_integer(info, argv[0], &repeat) < 0)
                 return -1;
             if (repeat <= 0) {
                 log_message(-1, "%s: loop counter is out of range: %s", info->verb, argv[0]);
@@ -311,7 +289,7 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
         ctxt->stack[ctxt->depth++] = (struct udotool_ctrl){ .count = repeat, .rtime = tval, .offset = offset };
         return 0;
     case CMD_IF:
-        if (parse_integer(info, argv[0], &repeat) < 0)
+        if (run_parse_condition(info, argc, argv, &repeat) < 0)
             return -1;
         ctxt->cond_omit = !repeat;
         log_message(1, "%s: condition is %s", info->verb, repeat ? "true" : "false");
@@ -358,7 +336,7 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
             return run_script(NULL);
         return run_script(argv[0]);
     case CMD_SLEEP:
-        if (parse_double(info, argv[0], &delay) < 0)
+        if (run_parse_double(info, argv[0], &delay) < 0)
             return -1;
         if (delay <= MIN_SLEEP_SEC || delay > MAX_SLEEP_SEC) {
             log_message(-1, "%s: delay is out of range: %s", info->verb, argv[0]);
