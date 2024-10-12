@@ -326,7 +326,8 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
             int ret;
             if ((ret = run_ctxt_jump_line(ctxt, ctrl->offset)) != 0)
                 return ret;
-        }
+        } else
+            ctxt->depth--;
         return 0;
     case CMD_EXIT:
         ctxt->depth = 0;
