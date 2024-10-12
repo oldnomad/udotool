@@ -108,6 +108,9 @@ from a script contains all environment variables available to
  loop will be repeated for no more than specified time. Loops may
  be embedded, but maximum stack depth is limited.
 
+**exit**
+:   Terminate execution of current script.
+
 ## Input emulation commands
 
 **key** [**-repeat** _num_] [**-time** _seconds_] [**-delay** _seconds_] _key_...

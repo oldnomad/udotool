@@ -75,6 +75,8 @@ int run_command(int argc, const char *const argv[]) {
     if ((ret = run_ctxt_init(&ctxt)) != 0)
         return ret;
     ret = run_line_args(&ctxt, argc, argv);
+    if (ret > 0)
+        ret = 0;
     ret2 = run_ctxt_free(&ctxt);
     return ret == 0 ? ret2 : ret;
 }

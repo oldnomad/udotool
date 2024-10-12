@@ -131,7 +131,7 @@ commands.
 
 Syntax: `loop [-time <TIME>] [<NUMBER>] <NL> ... <NL> endloop`
 
-This pair of commands creates a loop of command lines.
+This command creates a loop of command lines.
 
 The loop may have a number of repetitions, a repetition time,
 or both.
@@ -161,6 +161,12 @@ This will emulate left mouse button clicks for 3 seconds,
 but no more than 70 clicks. Since the default delay between
 clicks is 50 milliseconds, actual number of clicks will
 be at most 60.
+
+### EXIT
+
+Syntax: `exit`
+
+This command terminates execution of current script.
 
 ## High-level input commands
 

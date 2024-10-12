@@ -21,6 +21,7 @@ enum {
     CMD_LOOP = 0x100,
     CMD_ENDLOOP,
     CMD_SCRIPT,
+    CMD_EXIT,
     // Generic commands
     CMD_SLEEP = 0x200,
     CMD_EXEC,
@@ -96,6 +97,9 @@ static const struct udotool_verb_info KNOWN_VERBS[] = {
     { "script",   CMD_SCRIPT,   1,  1, 0,
       "<filename>",
       "Execute commands from specified file." },
+    { "exit",     CMD_EXIT,     0,  0, 0,
+      "",
+      "Finish executing current script." },
     { "help",     CMD_HELP,     0, -1, 0, // NOTE: -axis and -key are regular parameters
       "[<command> | -axis | -key]",
       "Print help information." },
@@ -348,6 +352,9 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
                 return ret;
         }
         return 0;
+    case CMD_EXIT:
+        ctxt->depth = 0;
+        return +1;
     case CMD_SCRIPT:
         if (argc <= 0 || argv == NULL)
             return run_script(NULL);
