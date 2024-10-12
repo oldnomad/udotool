@@ -7,6 +7,7 @@ than the man page.
 
 Following rules apply throughout all commands:
 
+- Lines starting with `#` or `;` are treated as comments and skipped.
 - Each line is subject to POSIX-compatible word expansion (tilde expansion,
   parameter expansion, command substitution, arithmetic expansion, and so on),
   field splitting, pathname expansion, and quote removal. For details see
@@ -37,8 +38,15 @@ When using word expansion in scripts, you should remember some caveats:
 
 - In `glibc` version 2.40 (and earlier), `wordexp(3)` doesn't yet support
   "dollar-single-quotes" quoting style, introduced in POSIX.1-2024.
+- In `glibc` version 2.40 (and earlier), `wordexp(3)` arithmetic expansion
+  supports only 4 basic arithmetic operations (`+`, `-`, `*`, and `/`).
+- `wordexp(3)` follows shell expansion rules. That means that characters
+  in set `"|&;<>(){}"`  should be properly escaped or quoted.
 - If word expansion produces newline characters, they will _not_ be treated
   as line separators, but as regular whitespace.
+- If word expansion produces new flow control commands (`loop`, `if`, `else`,
+  or `end`), result is _undefined_. In particular, this may result in syntax
+  error.
 
 Environment available to `udotool` script and to all commands invoked
 from it contains all environment variables available to `udotool` itself,
@@ -127,9 +135,9 @@ commands.
 
 ## Flow control commands
 
-### LOOP/ENDLOOP
+### LOOP
 
-Syntax: `loop [-time <TIME>] [<NUMBER>] <NL> ... <NL> endloop`
+Syntax: `loop [-time <TIME>] [<NUMBER>] <NL> ... <NL> end`
 
 This command creates a loop of command lines.
 
@@ -154,13 +162,41 @@ For example:
 ```
 loop -t 3 70
     key BTN_LEFT
-endloop
+end
 ```
 
 This will emulate left mouse button clicks for 3 seconds,
 but no more than 70 clicks. Since the default delay between
 clicks is 50 milliseconds, actual number of clicks will
 be at most 60.
+
+### IF/ELSE
+
+Syntax: `if <NUMBER> <NL> ... <NL> [else <NL> ... <NL>] end`
+
+These commands create conditional blocks of commands.
+
+The commands in the "if" block will be executed only if
+`<NUMBER>` is a non-zero integer.
+
+If `<NUMBER>` is not an integer, an error will be raised.
+
+The commands in the "else" block, if present, will be executed if
+"if" block is not executed.
+
+For example:
+
+```
+if $(( $XCURSOR_SIZE - 24 ))
+    move "+$XCURSOR_SIZE" 0
+else
+    move +25 0
+endif
+```
+
+This will emulate moving the mouse 25 pixels to the right if
+environment variable `XCURSOR_SIZE` is 24, otherwise the mouse
+will move `$XCURSOR_SIZE` pixels to the right.
 
 ### EXIT
 
@@ -187,7 +223,7 @@ loop -time 10 300
     keydown KEY_LEFTCTRL KEY_Q
     keyup   KEY_Q KEY_LEFTCTRL
     sleep   0.03
-endloop
+end
 ```
 
 ### KEYDOWN

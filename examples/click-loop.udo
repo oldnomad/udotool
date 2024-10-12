@@ -12,4 +12,4 @@ loop -time 10.1 10
   move -24 -24
   key -repeat 2 BTN_LEFT
   sleep 0.5
-endloop
+end

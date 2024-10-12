@@ -6,10 +6,10 @@ loop 5
   loop 3
       set b $[$b + 1]
       echo Iteration: "$a" "$b"
-  endloop
-endloop
+  end
+end
 echo Final: "$a" "$b"
 loop 3
   set a $[$a + 1]
   echo PostIter: "$a"
-endloop
+end

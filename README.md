@@ -19,7 +19,7 @@ position 10 12.5
 loop 20
     move +16 +16
     key -repeat 2 BTN_LEFT
-endloop
+end
 ```
 
 **WARNING:** **udotool** is currently under active development, so

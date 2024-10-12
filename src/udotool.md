@@ -102,11 +102,15 @@ from a script contains all environment variables available to
  **-axis** and **-keys** will make **help** print lists of known
  axes and keys, correspondingly.
 
-**loop** [**-time** _seconds_] [_num_] &lt;NL&gt; ... &lt;NL&gt; **endloop**
-:   Execute lines between **loop** and corresponding **endloop**
+**loop** [**-time** _seconds_] [_num_] &lt;NL&gt; ... &lt;NL&gt; **end**
+:   Execute lines between **loop** and corresponding **end**
  no more than _num_ times. If option **-time** is specified, the
- loop will be repeated for no more than specified time. Loops may
- be embedded, but maximum stack depth is limited.
+ loop will be repeated for no more than specified time.
+
+**if** _cond_ &lt;NL&gt; ... &lt;NL&gt; [**else** &lt;NL&gt; ... &lt;NL&gt;] **end**
+:   Execute lines conditionally. If _cond_ is a non-zero integer,
+ execute the block of lines after **if**, otherwise skip it, and
+ execute the block of lines after **else** (if specified).
 
 **exit**
 :   Terminate execution of current script.

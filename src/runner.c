@@ -16,30 +16,6 @@
 #include "uinput-func.h"
 
 enum {
-    CMD_HELP = 0,
-    // Control transferring commands
-    CMD_LOOP = 0x100,
-    CMD_ENDLOOP,
-    CMD_SCRIPT,
-    CMD_EXIT,
-    // Generic commands
-    CMD_SLEEP = 0x200,
-    CMD_EXEC,
-    CMD_ECHO,
-    CMD_SET,
-    // UINPUT commands
-    CMD_OPEN = 0x300,
-    CMD_INPUT,
-    // High-level UINPUT commands
-    CMD_KEYDOWN,
-    CMD_KEYUP,
-    CMD_KEY,
-    CMD_MOVE,
-    CMD_WHEEL,
-    CMD_POSITION,
-};
-
-enum {
     CMD_OPT_REPEAT = 0,
     CMD_OPT_TIME,
     CMD_OPT_DELAY,
@@ -77,9 +53,15 @@ static const struct udotool_verb_info KNOWN_VERBS[] = {
       "<axis>=<value>...",
       "Generate a packet of input values." },
     { "loop",     CMD_LOOP,     0,  1, HAS_OPTION(TIME),
-      "[-time <seconds>] [<N>]\n ...\nendloop",
+      "[-time <seconds>] [<N>]\n ...\nend",
       "Repeat a block of commands." },
-    { "endloop",  CMD_ENDLOOP,  0,  0, 0,
+    { "if",       CMD_IF,       1,  1, 0,
+      "<cond>\n ...\n[else\n ...]\nend",
+      "Execute a block of commands under condition." },
+    { "else",     CMD_ELSE,     0,  0, 0,
+      NULL,
+      NULL },
+    { "end",      CMD_END,      0,  0, 0,
       NULL,
       NULL },
     { "sleep",    CMD_SLEEP,    1,  1, 0,
@@ -118,7 +100,7 @@ static const struct udotool_obj_id OPTLIST[] = {
 static const char  AXIS_KEYDOWN[] = "KEYDOWN";
 static const char  AXIS_KEYUP[]   = "KEYUP";
 
-static const struct udotool_verb_info *find_verb(const char *verb) {
+const struct udotool_verb_info *run_find_verb(const char *verb) {
     for (const struct udotool_verb_info *info = KNOWN_VERBS; info->verb != NULL; info++)
         if (strcmp(verb, info->verb) == 0)
             return info;
@@ -201,7 +183,7 @@ static int print_help(int argc, const char *const argv[]) {
                 log_message(0, "unknown section %s", argv[i]);
             continue;
         }
-        const struct udotool_verb_info *info = find_verb(argv[i]);
+        const struct udotool_verb_info *info = run_find_verb(argv[i]);
         if (info != NULL && info->usage != NULL && info->description != NULL)
             printf(HELP_FMT, info->verb, info->usage, info->description);
     }
@@ -297,6 +279,7 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
     double value;
     struct timeval tval;
     off_t offset;
+    struct udotool_ctrl *ctrl;
     switch (info->cmd) {
     case CMD_HELP:
         return print_help(argc, argv);
@@ -327,28 +310,43 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
         }
         ctxt->stack[ctxt->depth++] = (struct udotool_ctrl){ .count = repeat, .rtime = tval, .offset = offset };
         return 0;
-    case CMD_ENDLOOP:
+    case CMD_IF:
+        if (parse_integer(info, argv[0], &repeat) < 0)
+            return -1;
+        ctxt->cond_omit = !repeat;
+        log_message(1, "%s: condition is %s", info->verb, repeat ? "true" : "false");
+        if (ctxt->depth >= (MAX_CTRL_DEPTH - 1)) {
+            log_message(-1, "%s: too many levels (max %d)", info->verb, MAX_CTRL_DEPTH);
+            return -1;
+        }
+        ctxt->stack[ctxt->depth++] = (struct udotool_ctrl){ .cond = 1 };
+        return 0;
+    case CMD_ELSE:
+        // If we are here, that means that `if` branch was taken
+        ctxt->cond_omit = 1;
+        return 0;
+    case CMD_END:
         if (ctxt->depth <= 0) {
             log_message(-1, "%s: mismatched context", info->verb);
             return -1;
         }
-        {
-            struct udotool_ctrl *loop = &ctxt->stack[ctxt->depth - 1];
-            loop->count--;
+        ctrl = &ctxt->stack[ctxt->depth - 1];
+        if (ctrl->cond == 0) {
+            ctrl->count--;
             if (gettimeofday(&tval, NULL) < 0) {
                 log_message(-1, "%s: cannot get current time: %s", info->verb, strerror(errno));
                 return -1;
             }
-            if (loop->count <= 0 || (timerisset(&loop->rtime) && !timercmp(&loop->rtime, &tval, >))) {
+            if (ctrl->count <= 0 || (timerisset(&ctrl->rtime) && !timercmp(&ctrl->rtime, &tval, >))) {
                 log_message(1, "%s: loop ended, counter = %d, current time = %lu.%06lu", info->verb,
-                    loop->count, (unsigned long)tval.tv_sec, (unsigned long)tval.tv_usec);
+                    ctrl->count, (unsigned long)tval.tv_sec, (unsigned long)tval.tv_usec);
                 ctxt->depth--;
                 return 0;
             }
             log_message(1, "%s: continue, counter = %d, current time = %lu.%06lu", info->verb,
-                loop->count, (unsigned long)tval.tv_sec, (unsigned long)tval.tv_usec);
+                ctrl->count, (unsigned long)tval.tv_sec, (unsigned long)tval.tv_usec);
             int ret;
-            if ((ret = run_ctxt_jump_line(ctxt, loop->offset)) != 0)
+            if ((ret = run_ctxt_jump_line(ctxt, ctrl->offset)) != 0)
                 return ret;
         }
         return 0;
@@ -502,7 +500,7 @@ int run_line_args(struct udotool_exec_context *ctxt, int argc, const char *const
         ++argv;
     } else
         verb = "help";
-    const struct udotool_verb_info *info = find_verb(verb);
+    const struct udotool_verb_info *info = run_find_verb(verb);
     if (info == NULL)
         return -1;
     return run_verb(ctxt, info, argc, argv);
