@@ -33,7 +33,7 @@ static int parse_script(struct udotool_exec_context *ctxt, FILE *input) {
         const char *sp = whitespace_trim(line);
         if (*sp == '\0' || *sp == '#' || *sp == ';') // Empty line or comment
             continue;
-        ret = run_line(ctxt, sp, 0);
+        ret = run_ctxt_save_line(ctxt, sp);
         if (ret != 0)
             break;
     }
@@ -60,6 +60,8 @@ int run_script(const char *filename) {
         ret = parse_script(&ctxt, input);
         fclose(input);
     }
+    if (ret == 0)
+        ret = run_ctxt_replay_lines(&ctxt);
     int ret2 = run_ctxt_free(&ctxt);
     if (ret == 0)
         ret = ret2;

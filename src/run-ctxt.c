@@ -12,6 +12,7 @@
 #include <sys/mman.h>
 #endif // !UDOTOOL_NOMMAN_TWEAK
 #include <unistd.h>
+#include <wordexp.h>
 
 #include "udotool.h"
 #include "runner.h"
@@ -21,7 +22,7 @@ int run_ctxt_init(struct udotool_exec_context *ctxt) {
 #ifndef UDOTOOL_NOMMAN_TWEAK
     if ((ctxt->body = memfd_create("body", MFD_CLOEXEC)) < 0) {
 #else
-    if ((ctxt->body = open("/tmp", O_TMPFILE|O_RDWR|O_EXCL)) < 0) {
+    if ((ctxt->body = open("/tmp", O_TMPFILE|O_RDWR|O_EXCL|O_CLOEXEC)) < 0) {
 #endif
         log_message(-1, "error creating body storage: %s", strerror(errno));
         return -1;
@@ -74,6 +75,34 @@ static int ctxt_drop_lines(struct udotool_exec_context *ctxt) {
     return run_ctxt_jump_line(ctxt, 0);
 }
 
+static int ctxt_run_line(struct udotool_exec_context *ctxt, const char *line) {
+    wordexp_t words;
+    words.we_wordv = NULL;
+    int ret = wordexp(line, &words, WRDE_SHOWERR);
+    if (ret != 0) {
+        switch (ret) {
+        case WRDE_BADCHAR:
+            log_message(-1, "%s[%u]: illegal character", ctxt->filename, ctxt->lineno);
+            break;
+        case WRDE_NOSPACE:
+            log_message(-1, "%s[%u]: not enough memory", ctxt->filename, ctxt->lineno);
+            break;
+        case WRDE_SYNTAX:
+            log_message(-1, "%s[%u]: shell syntax error", ctxt->filename, ctxt->lineno);
+            break;
+        default:
+            log_message(-1, "%s[%u]: parsing error %d", ctxt->filename, ctxt->lineno, ret);
+            break;
+        }
+        return -1;
+    }
+    ret = 0;
+    if (words.we_wordc > 0) // Empty line can be a result of expansion
+        ret = run_line_args(ctxt, words.we_wordc, (const char *const*)words.we_wordv);
+    wordfree(&words);
+    return ret;
+}
+
 int run_ctxt_replay_lines(struct udotool_exec_context *ctxt) {
     int ret;
     if ((ret = run_ctxt_jump_line(ctxt, 0)) != 0)
@@ -97,7 +126,7 @@ ON_EOF_ERROR:
         ret = -1;
         if (rlen == (ssize_t)len) {
             line[len] = '\0';
-            ret = run_line(ctxt, line, 1);
+            ret = ctxt_run_line(ctxt, line);
         }
         free(line);
         if (rlen < 0 || ret != 0)

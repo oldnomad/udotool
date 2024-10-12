@@ -10,7 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
-#include <wordexp.h>
 
 #include "udotool.h"
 #include "runner.h"
@@ -109,11 +108,6 @@ static const struct udotool_obj_id OPTLIST[] = {
     { "r",      CMD_OPT_R      },
     { "h",      CMD_OPT_H      },
     { "detach", CMD_OPT_DETACH },
-    { NULL }
-};
-static const struct udotool_obj_id SPEC_WORDS[] = {
-    { "loop",    CMD_LOOP    },
-    { "endloop", CMD_ENDLOOP },
     { NULL }
 };
 
@@ -303,7 +297,6 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
     case CMD_HELP:
         return print_help(argc, argv);
     case CMD_LOOP:
-        // depth < (MAX_LOOP_DEPTH - 1)
         if (argc > 0) {
             if (parse_integer(info, argv[0], &repeat) < 0)
                 return -1;
@@ -324,10 +317,17 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
             repeat, (unsigned long)tval.tv_sec, (unsigned long)tval.tv_usec);
         if ((offset = run_ctxt_tell_line(ctxt)) == (off_t)-1)
             return -1;
+        if (ctxt->depth >= (MAX_CTRL_DEPTH - 1)) {
+            log_message(-1, "%s: too many levels (max %d)", info->verb, MAX_CTRL_DEPTH);
+            return -1;
+        }
         ctxt->stack[ctxt->depth++] = (struct udotool_ctrl){ .count = repeat, .rtime = tval, .offset = offset };
         return 0;
     case CMD_ENDLOOP:
-        // 0 < depth < MAX_LOOP_DEPTH
+        if (ctxt->depth <= 0) {
+            log_message(-1, "%s: mismatched context", info->verb);
+            return -1;
+        }
         {
             struct udotool_ctrl *loop = &ctxt->stack[ctxt->depth - 1];
             loop->count--;
@@ -499,79 +499,4 @@ int run_line_args(struct udotool_exec_context *ctxt, int argc, const char *const
     if (info == NULL)
         return -1;
     return run_verb(ctxt, info, argc, argv);
-}
-
-static int start_word(const char *line) {
-    const char *sep = getenv("IFS");
-    if (sep == NULL || *sep == '\0')
-        sep = " \t";
-    size_t slen = strcspn(line, sep);
-    if (slen == 0)
-        return -1;
-    for (const struct udotool_obj_id *word = SPEC_WORDS; word->name != NULL; word++)
-        if (strncmp(line, word->name, slen) == 0)
-            return word->value;
-    return -1;
-}
-
-static int process_body(struct udotool_exec_context *ctxt, const char *line, int in_body) {
-    if (in_body != 0)
-        return +1;
-    int wcode = start_word(line);
-    if (ctxt->depth == 0 && wcode != CMD_LOOP)
-        return +1;
-    int ret;
-    if ((ret = run_ctxt_save_line(ctxt, line)) != 0)
-        return ret;
-    switch (wcode) {
-    case CMD_LOOP:
-        ctxt->depth++;
-        if (ctxt->depth >= MAX_CTRL_DEPTH) {
-            log_message(-1, "loop: too many levels (max %d)", MAX_CTRL_DEPTH);
-            return -1;
-        }
-        break;
-    case CMD_ENDLOOP:
-        if (ctxt->depth == 0) {
-            log_message(-1, "endloop: endloop without loop");
-            return -1;
-        }
-        ctxt->depth--;
-        if (ctxt->depth == 0)
-            return run_ctxt_replay_lines(ctxt);
-    default:
-        break;
-    }
-    return 0;
-}
-
-int run_line(struct udotool_exec_context *ctxt, const char *line, int in_body) {
-    int ret;
-    if ((ret = process_body(ctxt, line, in_body)) <= 0)
-        return ret;
-    wordexp_t words;
-    words.we_wordv = NULL;
-    ret = wordexp(line, &words, WRDE_SHOWERR);
-    if (ret != 0) {
-        switch (ret) {
-        case WRDE_BADCHAR:
-            log_message(-1, "%s[%u]: illegal character", ctxt->filename, ctxt->lineno);
-            break;
-        case WRDE_NOSPACE:
-            log_message(-1, "%s[%u]: not enough memory", ctxt->filename, ctxt->lineno);
-            break;
-        case WRDE_SYNTAX:
-            log_message(-1, "%s[%u]: shell syntax error", ctxt->filename, ctxt->lineno);
-            break;
-        default:
-            log_message(-1, "%s[%u]: parsing error %d", ctxt->filename, ctxt->lineno, ret);
-            break;
-        }
-        return -1;
-    }
-    ret = 0;
-    if (words.we_wordc > 0) // Empty line can be a result of expansion
-        ret = run_line_args(ctxt, words.we_wordc, (const char *const*)words.we_wordv);
-    wordfree(&words);
-    return ret;
 }

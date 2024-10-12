@@ -46,4 +46,3 @@ int   run_ctxt_save_line(struct udotool_exec_context *ctxt, const char *line);
 int   run_ctxt_replay_lines(struct udotool_exec_context *ctxt);
 
 int run_line_args(struct udotool_exec_context *ctxt, int argc, const char *const argv[]);
-int run_line(struct udotool_exec_context *ctxt, const char *line, int in_body);

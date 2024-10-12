@@ -39,9 +39,6 @@ When using word expansion in scripts, you should remember some caveats:
   "dollar-single-quotes" quoting style, introduced in POSIX.1-2024.
 - If word expansion produces newline characters, they will _not_ be treated
   as line separators, but as regular whitespace.
-- If word expansion produces new flow control commands (`loop` or `endloop`),
-  result is _unpredictable_. You can, however, use word expansion in
-  parameters of these commands.
 
 Environment available to `udotool` script and to all commands invoked
 from it contains all environment variables available to `udotool` itself,
