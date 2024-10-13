@@ -1,4 +1,4 @@
-udotool (1.5) UNRELEASED; urgency=medium
+udotool (1.5) unstable; urgency=medium
 
   * NEW: Can now specify tweaks in addition to quirks.
   * NEW: New tweak `NOMMAN` for memory-constrained systems.
@@ -6,7 +6,7 @@ udotool (1.5) UNRELEASED; urgency=medium
   * CHANGE: Command `endloop` renamed to `end`.
   * NEW: Command `if`/`else`.
 
- -- Alec Kojaev <alec.kojaev@gmail.com>  Wed, 09 Oct 2024 22:13:30 +0300
+ -- Alec Kojaev <alec.kojaev@gmail.com>  Sun, 13 Oct 2024 18:28:44 +0300
 
 udotool (1.4) unstable; urgency=medium
 
