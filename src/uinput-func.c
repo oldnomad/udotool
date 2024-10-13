@@ -20,6 +20,7 @@
 
 static char UINPUT_DEVICE[PATH_MAX] = "/dev/uinput";
 static char UINPUT_DEVNAME[UINPUT_MAX_NAME_SIZE] = "udotool";
+static double UINPUT_SETTLE_TIME = DEFAULT_SETTLE_TIME;
 static struct input_id UINPUT_ID = {
     .bustype = BUS_VIRTUAL,
     .vendor  = 0,
@@ -86,6 +87,20 @@ int uinput_set_option(int option, const char *value) {
                 return -1;
             }
             UINPUT_ID.version = uval;
+        }
+        break;
+    case UINPUT_OPT_SETTLE:
+        {
+            double dval;
+            const char *ep = NULL;
+
+            dval = strtod(value, (char **)&ep);
+            if (ep == value || *ep != '\0' ||
+                dval < MIN_SLEEP_SEC || dval > MAX_SLEEP_SEC) {
+                log_message(-1, "UINPUT: error parsing settle time: %s", value);
+                return -1;
+            }
+            UINPUT_SETTLE_TIME = dval;
         }
         break;
     default:
@@ -198,6 +213,10 @@ int uinput_open(void) {
     unsigned version = 0;
     if (uinput_ioctl_ptr(UINPUT_FD, "UI_GET_VERSION", UI_GET_VERSION, &version) == 0)
         log_message(1, "UINPUT: protocol version 0x%04X", version);
+
+    log_message(2, "UINPUT: waiting to settle");
+    cmd_sleep(UINPUT_SETTLE_TIME, 1);
+
     return 0;
 }
 

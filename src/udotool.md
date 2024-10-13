@@ -36,6 +36,9 @@ starting with two dashes ('-'). A summary of options is included below.
 **-n**, **\-\-dry-run**
 :   Do not execute input emulation commands. Generic commands will be executed anyway.
 
+**\-\-settle-time** _time_
+:   Use specified settle time (default is 0.5 seconds).
+
 **\-\-dev** _dev-path_
 :   Use specified UINPUT device. Default is **/dev/uinput**.
 

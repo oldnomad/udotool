@@ -8,6 +8,7 @@ enum {
     UINPUT_OPT_DEVICE = 0,
     UINPUT_OPT_DEVNAME,
     UINPUT_OPT_DEVID,
+    UINPUT_OPT_SETTLE,
 };
 
 enum {

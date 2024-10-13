@@ -1,3 +1,10 @@
+udotool (1.6) UNRELEASED; urgency=medium
+
+  * NEW: Wait for settle time after device setup.
+  * NEW: Option `--settle-time` to specify device settle time.
+
+ -- Alec Kojaev <alec.kojaev@gmail.com>  Sun, 13 Oct 2024 23:41:37 +0300
+
 udotool (1.5) unstable; urgency=medium
 
   * NEW: Can now specify tweaks in addition to quirks.

@@ -10,6 +10,7 @@
 #define MAX_SLEEP_SEC         86400 // Maximum `sleep` delay, seconds
 #define MIN_SLEEP_SEC         0.001 // Minimum `sleep` delay, seconds
 #define DEFAULT_SLEEP_SEC     0.050 // Default loop delay
+#define DEFAULT_SETTLE_TIME   0.500 // Default settle time after setup
 
 #define MAX_CTRL_DEPTH           16 // Maximum flow control stack depth
 #define MAX_EVAL_DEPTH           16 // Maximum evaluation stack depth
