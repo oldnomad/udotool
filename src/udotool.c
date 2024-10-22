@@ -75,14 +75,25 @@ void log_message(int level, const char *fmt,...) {
     va_end(args);
 }
 
+static void load_preset(int opt, const char *envname) {
+    const char *envdata = getenv(envname);
+    if (envdata == NULL)
+        return;
+    uinput_set_option(opt, envdata);
+}
+
 int main(int argc, char *const argv[]) {
     int opt, optidx;
     const char *input_file = NULL;
 
+    load_preset(UINPUT_OPT_SETTLE, "UDOTOOL_SETTLE_TIME");
+    load_preset(UINPUT_OPT_DEVICE, "UDOTOOL_DEVICE_PATH");
+    load_preset(UINPUT_OPT_DEVNAME, "UDOTOOL_DEVICE_NAME");
+    load_preset(UINPUT_OPT_DEVID, "UDOTOOL_DEVICE_ID");
     while ((opt = getopt_long(argc, argv, SHORT_OPTION, LONG_OPTION, &optidx)) != -1) {
         if (opt >= UINPUT_OPT_OFFSET) {
             if (uinput_set_option(opt - UINPUT_OPT_OFFSET, optarg) < 0)
-                return -1;
+                return EXIT_FAILURE;
             continue;
         }
         switch (opt) {

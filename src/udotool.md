@@ -178,7 +178,7 @@ can be also made executable with a shebang syntax:
 
 ```
 #!/usr/bin/udotool -i
-exec echo "This script emulates 10 left mouse button clicks"
+echo "This script emulates 10 left mouse button clicks"
 key -repeat 10 BTN_LEFT
 ```
 
@@ -279,6 +279,30 @@ it as a number in decimal or (with prefix **0x**) hexadecimal.
 
 If you have the device that you want to emulate, you can use **evtest**(1)
 to determine which keys it uses.
+
+# ENVIRONMENT
+
+**UDOTOOL_SYSNAME**
+:   This environment variable is set for commands called from a **udotool**
+ script and contains virtual device directory name under
+ **/sys/devices/virtual/input/**. It becomes available when emulation device
+ is initialized.
+
+**UDOTOOL_SETTLE_TIME**
+:   If set, this environment variable overrides default device settle time
+ (in seconds). This value can be overridden by a command-line option.
+
+**UDOTOOL_DEVICE_PATH**
+:   If set, this environment variable overrides default UINPUT device path.
+ This value can be overridden by a command-line option.
+
+**UDOTOOL_DEVICE_NAME**
+:   If set, this environment variable overrides default emulated device name.
+ This value can be overridden by a command-line option.
+
+**UDOTOOL_DEVICE_ID**
+:   If set, this environment variable overrides default emulated device ID.
+ This value can be overridden by a command-line option.
 
 # SEE ALSO
 

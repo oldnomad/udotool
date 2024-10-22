@@ -308,11 +308,11 @@ command in following cases:
 ```
 #!/usr/bin/udotool -i
 # Following will not print anything, the device isn't created yet
-exec echo $UDOTOOL_SYSNAME
+echo $UDOTOOL_SYSNAME
 # You need either an input emulation command, or `open`
 open
 # Now we know the device name:
-exec echo $UDOTOOL_SYSNAME
+echo $UDOTOOL_SYSNAME
 ```
 
 ### INPUT
