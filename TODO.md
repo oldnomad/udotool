@@ -7,4 +7,5 @@
 
 ## Script language
 
-(nothing yet)
+- Loop with boolean condition.
+- Break from loop.
