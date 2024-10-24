@@ -4,6 +4,10 @@
  *
  * Copyright (c) 2024 Alec Kojaev
  */
+
+/**
+ * Command opcodes.
+ */
 enum {
     CMD_HELP = 0,
     // Control transferring commands
@@ -30,41 +34,43 @@ enum {
     CMD_POSITION,
 };
 
+/**
+ * Command description ("verb").
+ */
 struct udotool_verb_info {
-    const char *verb;
-    unsigned    cmd;
-    int         min_argc, max_argc;
-    unsigned    options;
-    const char *usage;
-    const char *description;
+    const char *verb;         ///< Command name.
+    unsigned    cmd;          ///< Command opcode.
+    int         min_argc;     ///< Minimum number of non-option arguments.
+    int         max_argc;     ///< Maximum number of non-option arguments, or `-1`.
+    unsigned    options;      ///< Command options bitmask.
+    const char *usage;        ///< Arguments syntax, or `NULL`.
+    const char *description;  ///< Human-readable description, or `NULL`.
 };
 
-struct udotool_cmd {
-    const struct udotool_verb_info
-               *info;
-    int         argc;
-    const char *const*
-                argv;
-};
-
+/**
+ * Flow control state.
+ */
 struct udotool_ctrl {
-    int         cond;
-    int         count;
+    int         cond;    ///< If zero, this is a loop.
+    int         count;   ///< Remaining iterations (loop only).
     struct timeval
-                rtime;
-    off_t       offset;
+                rtime;   ///< End timestamp.
+    off_t       offset;  ///< Back offset (loop only).
 };
 
+/**
+ * Execution context.
+ */
 struct udotool_exec_context {
-    const char *filename;
-    unsigned    lineno;
+    const char *filename;               ///< Script file name.
+    unsigned    lineno;                 ///< Current script line number.
 
-    int         body;
-    size_t      depth;
-    int         cond_omit;
-    size_t      cond_depth;
+    int         body;                   ///< Handle for temporary file.
+    size_t      depth;                  ///< Control flow stack depth.
+    int         cond_omit;              ///< Omit flag.
+    size_t      cond_depth;             ///< Control flow depth in omitted commands.
     struct udotool_ctrl
-                stack[MAX_CTRL_DEPTH];
+                stack[MAX_CTRL_DEPTH];  ///< Control flow stack.
 };
 
 int   run_ctxt_init(struct udotool_exec_context *ctxt);

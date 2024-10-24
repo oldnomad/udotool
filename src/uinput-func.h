@@ -4,28 +4,41 @@
  *
  * Copyright (c) 2024 Alec Kojaev
  */
+
+/**
+ * UINPUT option codes.
+ */
 enum {
-    UINPUT_OPT_DEVICE = 0,
-    UINPUT_OPT_DEVNAME,
-    UINPUT_OPT_DEVID,
-    UINPUT_OPT_SETTLE,
+    UINPUT_OPT_DEVICE = 0,  ///< UINPUT device path.
+    UINPUT_OPT_DEVNAME,     ///< Emulated device name.
+    UINPUT_OPT_DEVID,       ///< Emulated device ID.
+    UINPUT_OPT_SETTLE,      ///< Device settle time.
 };
 
+/**
+ * Axis type flag masks.
+ */
 enum {
-    UDOTOOL_AXIS_REL = 0x01,
-    UDOTOOL_AXIS_ABS = 0x02,
-    UDOTOOL_AXIS_BOTH = 0x03,
+    UDOTOOL_AXIS_REL = 0x01,   ///< Relative axes only.
+    UDOTOOL_AXIS_ABS = 0x02,   ///< Absolute axes only.
+    UDOTOOL_AXIS_BOTH = 0x03,  ///< Both types of axes.
 };
 
+/**
+ * Named item.
+ */
 struct udotool_obj_id {
-    const char *name;
-    int value;
+    const char *name;  ///< Item name.
+    int value;         ///< Item value.
 };
 
+/**
+ * High-resolution wheel axis mapping.
+ */
 struct udotool_hires_axis {
-    int lo_axis;
-    int hi_axis;
-    int divisor;
+    int lo_axis;  ///< Low-resolution axis code.
+    int hi_axis;  ///< High-resolution axis code.
+    int divisor;  ///< Conversion factor.
 };
 
 extern const struct udotool_obj_id UINPUT_REL_AXES[];

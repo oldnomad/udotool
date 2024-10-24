@@ -15,18 +15,24 @@
 #include "runner.h"
 #include "uinput-func.h"
 
+/**
+ * Command option codes.
+ */
 enum {
-    CMD_OPT_REPEAT = 0,
-    CMD_OPT_TIME,
-    CMD_OPT_DELAY,
-    CMD_OPT_R,
-    CMD_OPT_H,
-    CMD_OPT_DETACH,
+    CMD_OPT_REPEAT = 0,  ///< `-repeat` (used in `key`).
+    CMD_OPT_TIME,        ///< `-time` (used in `key` and `loop`).
+    CMD_OPT_DELAY,       ///< `-delay` (used in `key`).
+    CMD_OPT_R,           ///< `-r` (used in `move` and `position`).
+    CMD_OPT_H,           ///< `-h` (used in `wheel`).
+    CMD_OPT_DETACH,      ///< `-detach` (used in `exec`).
 };
 
 #define CMD_OPTMASK(v)   (1u << (v))
 #define HAS_OPTION(name) CMD_OPTMASK(CMD_OPT_##name)
 
+/**
+ * Command descriptions.
+ */
 static const struct udotool_verb_info KNOWN_VERBS[] = {
     { "keydown",  CMD_KEYDOWN,  1, -1, 0,
       "<key>...",
@@ -87,6 +93,9 @@ static const struct udotool_verb_info KNOWN_VERBS[] = {
       "Print help information." },
     { NULL }
 };
+/**
+ * Command option mappings.
+ */
 static const struct udotool_obj_id OPTLIST[] = {
     { "repeat", CMD_OPT_REPEAT },
     { "time",   CMD_OPT_TIME   },
@@ -97,9 +106,21 @@ static const struct udotool_obj_id OPTLIST[] = {
     { NULL }
 };
 
+/**
+ * Pseudo-axis name for key down event.
+ */
 static const char  AXIS_KEYDOWN[] = "KEYDOWN";
-static const char  AXIS_KEYUP[]   = "KEYUP";
+/**
+ * Pseudo-axis name for key up event.
+ */
+static const char  AXIS_KEYUP[] = "KEYUP";
 
+/**
+ * Get a command description.
+ *
+ * @param verb  command name.
+ * @return      command description, or `NULL` if not found.
+ */
 const struct udotool_verb_info *run_find_verb(const char *verb) {
     for (const struct udotool_verb_info *info = KNOWN_VERBS; info->verb != NULL; info++)
         if (strcmp(verb, info->verb) == 0)
@@ -108,6 +129,16 @@ const struct udotool_verb_info *run_find_verb(const char *verb) {
     return NULL;
 }
 
+/**
+ * Parse an absolute axis value.
+ *
+ * Values for absolute axes are specified in percent of the maximum value.
+ *
+ * @param info  verb for which the value is parsed.
+ * @param text  text to parse.
+ * @param pval  pointer to buffer for parsed value.
+ * @return      zero on success, or `-1` on error.
+ */
 static int parse_abs_value(const struct udotool_verb_info *info, const char *text, double *pval) {
     double value = 0;
     if (run_parse_double(info, text, &value) < 0)
@@ -121,6 +152,16 @@ static int parse_abs_value(const struct udotool_verb_info *info, const char *tex
     return 0;
 }
 
+/**
+ * Parse a relative axis value.
+ *
+ * Values for relative axes are usually integer, except for the wheel axes.
+ *
+ * @param info  verb for which the value is parsed.
+ * @param text  text to parse.
+ * @param pval  pointer to buffer for parsed value.
+ * @return      zero on success, or `-1` on error.
+ */
 static int parse_rel_value(const struct udotool_verb_info *info, const char *text, double *pval) {
     double value = 0;
     if (run_parse_double(info, text, &value) < 0)
@@ -133,6 +174,19 @@ static int parse_rel_value(const struct udotool_verb_info *info, const char *tex
     return 0;
 }
 
+/**
+ * Print help message.
+ *
+ * If no arguments are specified, this function prints help for all commands.
+ *
+ * If specified, an argument may be a command name, or `"-axis"`, or `"-keys"`.
+ *
+ * Unknown commands are skipped, with an error message, but no error status.
+ *
+ * @param argc  number of arguments.
+ * @param argv  array of arguments.
+ * @return      zero.
+ */
 static int print_help(int argc, const char *const argv[]) {
     static const char HELP_FMT[] = "%s %s\n    %s\n";
 
@@ -168,6 +222,14 @@ static int print_help(int argc, const char *const argv[]) {
     return 0;
 }
 
+/**
+ * Calculate end time for a timed operation.
+ *
+ * @param info   verb for which the value is calculated.
+ * @param rtime  time, in seconds.
+ * @param pval   pointer to buffer for calculated timestamp.
+ * @return       zero on success, or `-1` on error.
+ */
 static int calc_rtime(const struct udotool_verb_info *info, double rtime, struct timeval *pval) {
     if (rtime == 0) {
         timerclear(pval);
@@ -185,6 +247,19 @@ static int calc_rtime(const struct udotool_verb_info *info, double rtime, struct
     return 0;
 }
 
+/**
+ * Execute a command.
+ *
+ * Note that only non-omitted commands get that far. For example,
+ * if in `if/else/end` the condition was false, we never get `else`
+ * in this function, it's processed elsewhere.
+ *
+ * @param ctxt  execution context.
+ * @param info  verb to execute.
+ * @param argc  number of arguments.
+ * @param argv  array of arguments.
+ * @return      zero on success, or `-1` on error.
+ */
 static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb_info *info, int argc, const char *const argv[]) {
     int repeat = 0, alt = 0;
     double delay = DEFAULT_SLEEP_SEC, rtime = 0;
@@ -471,6 +546,16 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
     return -1;
 }
 
+/**
+ * Execute an expanded command line.
+ *
+ * If no arguments are specified, `help` is executed.
+ *
+ * @param ctxt  execution context.
+ * @param argc  number of arguments.
+ * @param argv  array of arguments.
+ * @return      zero on success, or `-1` on error.
+ */
 int run_line_args(struct udotool_exec_context *ctxt, int argc, const char *const argv[]) {
     const char *verb;
     if (argc > 0) {

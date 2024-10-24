@@ -16,6 +16,13 @@
 
 #include "udotool.h"
 
+/**
+ * Command `echo`.
+ *
+ * @param argc  number of arguments.
+ * @param argv  array of arguments.
+ * @return      zero on success, or `-1` on error.
+ */
 int cmd_echo(int argc, const char *const argv[]) {
     int argn;
     for (argn = 0; argn < argc; argn++) {
@@ -27,6 +34,13 @@ int cmd_echo(int argc, const char *const argv[]) {
     return 0;
 }
 
+/**
+ * Command `set`.
+ *
+ * @param name   environment variable to set.
+ * @param value  value to set, or `NULL` to unset.
+ * @return       zero on success, or `-1` on error.
+ */
 int cmd_set(const char *name, const char *value) {
     int ret;
     if (value == NULL)
@@ -40,6 +54,13 @@ int cmd_set(const char *name, const char *value) {
     return 0;
 }
 
+/**
+ * Command `sleep`.
+ *
+ * @param delay     time to sleep, in seconds.
+ * @param internal  if not zero, this is a part of another command.
+ * @return          zero on success, or `-1` on error.
+ */
 int cmd_sleep(double delay, int internal) {
     struct timespec tval;
     memset(&tval, 0, sizeof(tval));
@@ -53,6 +74,14 @@ int cmd_sleep(double delay, int internal) {
     return 0;
 }
 
+/**
+ * Command `exec`.
+ *
+ * @param detach  if not zero, start the command in a separate session.
+ * @param argc    number of arguments.
+ * @param argv    array of arguments.
+ * @return        zero on success, or `-1` on error.
+ */
 int cmd_exec(int detach, int argc, const char *const argv[]) {
     pid_t pid;
     const char *command = argv[0];

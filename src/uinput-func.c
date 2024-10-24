@@ -18,6 +18,16 @@
 #include "udotool.h"
 #include "uinput-func.h"
 
+/**
+ * Default UINPUT emulation parameters.
+ *
+ * This group contains:
+ * - UINPUT device path.
+ * - Emulated device name.
+ * - Settle time in seconds.
+ * - Emulated device ID.
+ * - Absolute axis definition (common for all absolute axes).
+ */
 static char UINPUT_DEVICE[PATH_MAX] = "/dev/uinput";
 static char UINPUT_DEVNAME[UINPUT_MAX_NAME_SIZE] = "udotool";
 static double UINPUT_SETTLE_TIME = DEFAULT_SETTLE_TIME;
@@ -36,8 +46,18 @@ static struct input_absinfo UINPUT_AXIS_DEF = {
     .resolution = 0, // unit/mm for main axes, unit/radian for ABS_R{X,Y,Z}
 };
 
+/**
+ * UINPUT device handle, or `-1` if not open yet.
+ */
 static int UINPUT_FD = -1;
 
+/**
+ * Set UINPUT option.
+ *
+ * @param option  option code.
+ * @param value   option value.
+ * @return        zero on success, or `-1` on error.
+ */
 int uinput_set_option(int option, const char *value) {
     size_t len;
 
@@ -110,6 +130,15 @@ int uinput_set_option(int option, const char *value) {
     return 0;
 }
 
+/**
+ * Issue an IOCTL with an integer parameter.
+ *
+ * @param fd    device handle.
+ * @param name  IOCTL name (for messages).
+ * @param code  IOCTL code.
+ * @param arg   IOCTL parameter.
+ * @return      zero on success, or `-1` on error.
+ */
 static int uinput_ioctl_int(int fd, const char *name, unsigned long code, int arg) {
     log_message(2, "UINPUT: ioctl(%s, 0x%04X)", name, (unsigned)arg);
     if (ioctl(fd, code, arg) == -1) {
@@ -119,6 +148,15 @@ static int uinput_ioctl_int(int fd, const char *name, unsigned long code, int ar
     return 0;
 }
 
+/**
+ * Issue an IOCTL with a pointer parameter.
+ *
+ * @param fd    device handle.
+ * @param name  IOCTL name (for messages).
+ * @param code  IOCTL code.
+ * @param arg   IOCTL parameter.
+ * @return      zero on success, or `-1` on error.
+ */
 static int uinput_ioctl_ptr(int fd, const char *name, unsigned long code, void *arg) {
     log_message(2, "UINPUT: ioctl(%s, ...)", name);
     if (ioctl(fd, code, arg) == -1) {
@@ -128,6 +166,15 @@ static int uinput_ioctl_ptr(int fd, const char *name, unsigned long code, void *
     return 0;
 }
 
+/**
+ * Issue an IOCTL with an integer parameter for a list of values.
+ *
+ * @param fd    device handle.
+ * @param name  IOCTL name (for messages).
+ * @param code  IOCTL code.
+ * @param ids   a list of items to issue IOCTL for.
+ * @return      zero on success, or `-1` on error.
+ */
 static int uinput_ioctl_ids(int fd, const char *name, unsigned long code, const struct udotool_obj_id ids[]) {
     for (const struct udotool_obj_id *idptr = ids; idptr->name != NULL; idptr++)
         if (uinput_ioctl_int(fd, name, code, idptr->value) < 0)
@@ -135,6 +182,15 @@ static int uinput_ioctl_ids(int fd, const char *name, unsigned long code, const 
     return 0;
 }
 
+/**
+ * Issue an IOCTL with an integer parameter for all high-resolution
+ * wheel axes.
+ *
+ * @param fd    device handle.
+ * @param name  IOCTL name (for messages).
+ * @param code  IOCTL code.
+ * @return      zero on success, or `-1` on error.
+ */
 static int uinput_ioctl_hires(int fd, const char *name, unsigned long code) {
     for (int i = 0; UINPUT_HIRES_AXIS[i].lo_axis >= 0; i++)
         if (uinput_ioctl_int(fd, name, code, UINPUT_HIRES_AXIS[i].hi_axis) < 0)
@@ -142,6 +198,12 @@ static int uinput_ioctl_hires(int fd, const char *name, unsigned long code) {
     return 0;
 }
 
+/**
+ * Setup emulation parameters for UINPUT.
+ *
+ * @param fd  device handle.
+ * @return    zero on success, or `-1` on error.
+ */
 static int uinput_setup(int fd) {
     if (uinput_ioctl_int(fd, "UI_SET_EVBIT", UI_SET_EVBIT, EV_KEY) < 0 ||
         uinput_ioctl_int(fd, "UI_SET_EVBIT", UI_SET_EVBIT, EV_REL) < 0 ||
@@ -185,6 +247,13 @@ static int uinput_setup(int fd) {
     return uinput_ioctl_int(fd, "UI_DEV_CREATE", UI_DEV_CREATE, 0);
 }
 
+/**
+ * Create emulation device, unless already created.
+ *
+ * On dry run this skips device creation, so `$UDOTOOL_SYSNAME` will be empty.
+ *
+ * @return  zero on success, or `-1` on error.
+ */
 int uinput_open(void) {
     if (UINPUT_FD >= 0)
         return 0;
@@ -220,6 +289,11 @@ int uinput_open(void) {
     return 0;
 }
 
+/**
+ * Destroy emulation device, if created.
+ *
+ * Note that this doesn't unset `$UDOTOOL_SYSNAME`.
+ */
 void uinput_close() {
     if (UINPUT_FD < 0)
         return;
@@ -230,6 +304,14 @@ void uinput_close() {
     UINPUT_FD = -1;
 }
 
+/**
+ * Emit emulated event.
+ *
+ * @param type   event type.
+ * @param code   event code.
+ * @param value  event value.
+ * @return       zero on success, or `-1` on error.
+ */
 static int uinput_emit(int type, int code, int value) {
     log_message(2, "UINPUT: injecting event 0x%04X, code 0x%04X, value %d",
         (unsigned)type, (unsigned)code, value);
@@ -249,6 +331,11 @@ static int uinput_emit(int type, int code, int value) {
     return 0;
 }
 
+/**
+ * Emit a synchronization event.
+ *
+ * @return  zero on success, or `-1` on error.
+ */
 int uinput_sync(void) {
     if (uinput_open() < 0)
         return -1;
@@ -258,6 +345,14 @@ int uinput_sync(void) {
     return uinput_emit(EV_SYN, SYN_REPORT, 0);
 }
 
+/**
+ * Emit a key/button event.
+ *
+ * @param key    key/button code.
+ * @param value  `1` for key down, or `0` for key up.
+ * @param sync   if not zero, also emit a synchronization event.
+ * @return       zero on success, or `-1` on error.
+ */
 int uinput_keyop(int key, int value, int sync) {
     if (uinput_open() < 0)
         return -1;
@@ -275,6 +370,14 @@ int uinput_keyop(int key, int value, int sync) {
     return 0;
 }
 
+/**
+ * Emit a relative axis event.
+ *
+ * @param axis   axis code.
+ * @param value  change in position.
+ * @param sync   if not zero, also emit a synchronization event.
+ * @return       zero on success, or `-1` on error.
+ */
 int uinput_relop(int axis, double value, int sync) {
     if (uinput_open() < 0)
         return -1;
@@ -297,6 +400,14 @@ int uinput_relop(int axis, double value, int sync) {
     return 0;
 }
 
+/**
+ * Emit an absolute axis event.
+ *
+ * @param axis   axis code.
+ * @param value  new position.
+ * @param sync   if not zero, also emit a synchronization event.
+ * @return       zero on success, or `-1` on error.
+ */
 int uinput_absop(int axis, double value, int sync) {
     if (uinput_open() < 0)
         return -1;

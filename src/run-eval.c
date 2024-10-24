@@ -11,6 +11,9 @@
 #include "udotool.h"
 #include "runner.h"
 
+/**
+ * Operation opcodes.
+ */
 enum {
     OP_NONE = -1,
     OP_VALUE = 0,
@@ -31,10 +34,13 @@ enum {
     OP_OR,
 };
 
+/**
+ * Operation descriptions.
+ */
 static struct op_desc {
-    const char *name;
-    int         op;
-    int         precedence;
+    const char *name;        ///< Operation name.
+    int         op;          ///< Opcode.
+    int         precedence;  ///< Precedence (zero is the highest).
 } OPERATIONS[] = {
     { "(",    OP_OPEN,  0 },
     { ")",    OP_CLOSE, 0 },
@@ -50,20 +56,26 @@ static struct op_desc {
     { NULL }
 };
 
-struct op_elem {
-    int op;
-    int result;
-};
-
+/**
+ * Evaluation context.
+ */
 struct eval_context {
     const struct udotool_verb_info
-          *info;
-    size_t op_depth;
-    int    op_stack[MAX_EVAL_DEPTH];
-    size_t val_depth;
-    double val_stack[MAX_EVAL_DEPTH];
+          *info;                       ///< Execution context.
+    size_t op_depth;                   ///< Operation stack depth.
+    int    op_stack[MAX_EVAL_DEPTH];   ///< Operation stack.
+    size_t val_depth;                  ///< Value stack depth.
+    double val_stack[MAX_EVAL_DEPTH];  ///< Value stack.
 };
 
+/**
+ * Parse a double-precision floating-point value.
+ *
+ * @param info  verb for which evaluation is performed.
+ * @param text  text to parse.
+ * @param pval  pointer to buffer for parsed value.
+ * @return      zero on success, or `-1` on error.
+ */
 int run_parse_double(const struct udotool_verb_info *info, const char *text, double *pval) {
     const char *ep = text;
     double value = strtod(text, (char **)&ep);
@@ -75,6 +87,14 @@ int run_parse_double(const struct udotool_verb_info *info, const char *text, dou
     return 0;
 }
 
+/**
+ * Parse an integer value.
+ *
+ * @param info  verb for which evaluation is performed.
+ * @param text  text to parse.
+ * @param pval  pointer to buffer for parsed value.
+ * @return      zero on success, or `-1` on error.
+ */
 int run_parse_integer(const struct udotool_verb_info *info, const char *text, int *pval) {
     const char *ep = text;
     long value = strtol(text, (char **)&ep, 0);
@@ -86,6 +106,12 @@ int run_parse_integer(const struct udotool_verb_info *info, const char *text, in
     return 0;
 }
 
+/**
+ * Convert token to opcode.
+ *
+ * @param token  token to convert.
+ * @return       opcode, or `OP_VALUE` if not an operation.
+ */
 static int parse_opcode(const char *token) {
     for (struct op_desc *oper = OPERATIONS; oper->name != NULL; oper++)
         if (strcmp(token, oper->name) == 0)
@@ -93,6 +119,12 @@ static int parse_opcode(const char *token) {
     return OP_VALUE;
 }
 
+/**
+ * Get operation name.
+ *
+ * @param op  opcode.
+ * @return    operation name.
+ */
 static const char *parse_opname(int op) {
     for (struct op_desc *oper = OPERATIONS; oper->name != NULL; oper++)
         if (oper->op == op)
@@ -100,6 +132,12 @@ static const char *parse_opname(int op) {
     return "???";
 }
 
+/**
+ * Get operation precedence.
+ *
+ * @param op  opcode.
+ * @return    operation precedence.
+ */
 static int parse_opprec(int op) {
     for (struct op_desc *oper = OPERATIONS; oper->name != NULL; oper++)
         if (oper->op == op)
@@ -107,6 +145,13 @@ static int parse_opprec(int op) {
     return -1;
 }
 
+/**
+ * Push an operation to operation stack.
+ *
+ * @param ctxt  evaluation context.
+ * @param op    opcode to push.
+ * @return      zero on success, or `-1` on error.
+ */
 static int parse_op_push(struct eval_context *ctxt, int op) {
     if (ctxt->op_depth >= (MAX_EVAL_DEPTH - 1)) {
         log_message(-1, "%s: condition complexity exceeded", ctxt->info->verb);
@@ -116,16 +161,35 @@ static int parse_op_push(struct eval_context *ctxt, int op) {
     return 0;
 }
 
+/**
+ * Peek an operation on the top of operation stack.
+ *
+ * @param ctxt  evaluation context.
+ * @return      opcode on success, or `OP_NONE` if stack is empty.
+ */
 static int parse_op_peek(struct eval_context *ctxt) {
     return ctxt->op_depth == 0 ? OP_NONE : ctxt->op_stack[ctxt->op_depth - 1];
 }
 
+/**
+ * Pop an operation from the top of operation stack.
+ *
+ * @param ctxt  evaluation context.
+ * @return      opcode on success, or `OP_NONE` if stack is empty.
+ */
 static int parse_op_pop(struct eval_context *ctxt) {
     if (ctxt->op_depth == 0)
         return OP_NONE;
     return ctxt->op_stack[--(ctxt->op_depth)];
 }
 
+/**
+ * Push a value to value stack.
+ *
+ * @param ctxt   evaluation context.
+ * @param value  value to push.
+ * @return       zero on success, or `-1` on error.
+ */
 static int parse_val_push(struct eval_context *ctxt, double value) {
     if (ctxt->val_depth >= (MAX_EVAL_DEPTH - 1)) {
         log_message(-1, "%s: condition complexity exceeded", ctxt->info->verb);
@@ -135,6 +199,13 @@ static int parse_val_push(struct eval_context *ctxt, double value) {
     return 0;
 }
 
+/**
+ * Pop a value from the top of value stack.
+ *
+ * @param ctxt    evaluation context.
+ * @param pvalue  buffer for popped value.
+ * @return        zero on success, or `-1` on error.
+ */
 static int parse_val_pop(struct eval_context *ctxt, double *pvalue) {
     if (ctxt->val_depth == 0)
         return -1;
@@ -142,6 +213,12 @@ static int parse_val_pop(struct eval_context *ctxt, double *pvalue) {
     return 0;
 }
 
+/**
+ * Apply an operation from the top of operation stack.
+ *
+ * @param ctxt  evaluation context.
+ * @return      zero on success, or `-1` on error.
+ */
 static int parse_expr_apply(struct eval_context *ctxt) {
     int op = parse_op_pop(ctxt);
     double arg1 = 0, arg2 = 0, result = 0;
@@ -211,13 +288,29 @@ ON_ERROR:
     return parse_val_push(ctxt, result);
 }
 
-static int parse_op_higher(int op, int op2) {
-    // Check whether `op2` is same or higher precedence than `op`
-    int prec = parse_opprec(op);
+/**
+ * Compare two operation precedences.
+ *
+ * @param op1  first opcode.
+ * @param op2  second opcode.
+ * @return     non-zero if the second operation is of same of higher
+ *             precedence than the first operation.
+ */
+static int parse_op_higher(int op1, int op2) {
+    int prec1 = parse_opprec(op1);
     int prec2 = parse_opprec(op2);
-    return prec2 <= prec;
+    return prec2 <= prec1;
 }
 
+/**
+ * Parse and evaluate a condition expression.
+ *
+ * @param info  verb for which evaluation is performed.
+ * @param argc  number of arguments.
+ * @param argv  array of arguments.
+ * @param pval  pointer to buffer for evaluated value.
+ * @return      zero on success, or `-1` on error.
+ */
 int run_parse_condition(const struct udotool_verb_info *info, int argc, const char *const* argv, int *pval) {
     struct eval_context ctxt = { .info = info, .op_depth = 0, .val_depth = 0 };
 
@@ -267,7 +360,12 @@ int run_parse_condition(const struct udotool_verb_info *info, int argc, const ch
 }
 
 #ifdef RUN_EVAL_TEST
+//
 // This is a test for condition evaluation
+//
+// To build: gcc -DRUN_EVAL_TEST run-eval.c -o run-eval
+// To run:   ./run-eval <token>...
+//
 #include <stdarg.h>
 #include <stdio.h>
 

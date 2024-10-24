@@ -13,13 +13,24 @@
 #include "uinput-func.h"
 #include "config.h"
 
+/**
+ * Full version string.
+ */
 #define VERSION_STRING PROGRAM_NAME " " PROGRAM_VERSION " " PROGRAM_COPYRIGHT
 
+/**
+ * Offset for UINPUT options.
+ *
+ * This must be hugher than any option code processed in `main()`.
+ */
 #define UINPUT_OPT_OFFSET 1000
 
 #define QUOTE(v)  #v
 #define EQUOTE(v) QUOTE(v)
 
+/**
+ * Usage message.
+ */
 static const char USAGE_NOTICE[] = "Usage: %s [<option>...] <subcommand>...\n\n"
                                    "Options:\n"
                                    "    -i [<file>], --input [<file>]\n"
@@ -43,6 +54,9 @@ static const char USAGE_NOTICE[] = "Usage: %s [<option>...] <subcommand>...\n\n"
                                    "    -V, --version\n"
                                    "        Print version information and exit.\n\n"
                                    "Use subcommand \"help\" to get a list of all available subcommands.\n";
+/**
+ * Command line options.
+ */
 static const char SHORT_OPTION[] = "+i:nvhV";
 static const struct option LONG_OPTION[] = {
     { "input",       optional_argument, NULL, 'i' },
@@ -57,10 +71,22 @@ static const struct option LONG_OPTION[] = {
     { NULL }
 };
 
-static int  CFG_VERBOSITY = 0;
-int         CFG_DRY_RUN = 0;
-const char *CFG_DRY_RUN_PREFIX = "";
+static int  CFG_VERBOSITY = 0;        ///< Message verbosity level.
+int         CFG_DRY_RUN = 0;          ///< Dry run mode.
+const char *CFG_DRY_RUN_PREFIX = "";  ///< Message prefix for dry run, or an empty string.
 
+/**
+ * Print a message.
+ *
+ * Message levels are:
+ * - `-1` for error messages.
+ * - `0` for mandatory messages.
+ * - positive for verbosity-controlled optional messages.
+ *
+ * @param level  message level.
+ * @param fmt    `printf`-like message format.
+ * @param ...    message format arguments.
+ */
 void log_message(int level, const char *fmt,...) {
     if (level > CFG_VERBOSITY)
         return;
@@ -75,6 +101,12 @@ void log_message(int level, const char *fmt,...) {
     va_end(args);
 }
 
+/**
+ * Load UINPUT option from an environment variable.
+ *
+ * @param opt      UINPUT option code.
+ * @param envname  environment variable.
+ */
 static void load_preset(int opt, const char *envname) {
     const char *envdata = getenv(envname);
     if (envdata == NULL)

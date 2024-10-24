@@ -13,6 +13,13 @@
 #include "udotool.h"
 #include "uinput-func.h"
 
+/**
+ * Find an item value by name.
+ *
+ * @param ids   list of items.
+ * @param name  name to look for.
+ * @return      item value.
+ */
 static int uinput_find_id(const struct udotool_obj_id ids[], const char *name) {
     for (const struct udotool_obj_id *idptr = ids; idptr->name != NULL; idptr++)
         if (strcasecmp(name, idptr->name) == 0)
@@ -20,6 +27,21 @@ static int uinput_find_id(const struct udotool_obj_id ids[], const char *name) {
     return -1;
 }
 
+/**
+ * Convert axis name to axis code.
+ *
+ * Depending on `mask`, this function looks for absolute axes, relative
+ * axes, or both.
+ *
+ * If `pflag` is not `NULL`, the buffer it points to will be set to `1`
+ * if the axis is absolute, or `0` otherwise.
+ *
+ * @param prefix  prefix for error messages.
+ * @param name    axis name to look for.
+ * @param mask    flag bit mask for types of axes to look for.
+ * @param pflag   if not `NULL`, pointer to buffer to write axis type to.
+ * @return        axis code, or `-1` if not found.
+ */
 int uinput_find_axis(const char *prefix, const char *name, unsigned mask, int *pflag) {
     int id;
     if ((mask & UDOTOOL_AXIS_ABS) != 0) {
@@ -40,6 +62,16 @@ int uinput_find_axis(const char *prefix, const char *name, unsigned mask, int *p
     return -1;
 }
 
+/**
+ * Convert key/button to its value.
+ *
+ * Key/button can be either a name from predefined list, or a numeric
+ * (decimal, octal, or hexadecimal) value.
+ *
+ * @param prefix  prefix for error messages.
+ * @param key     key/button.
+ * @return        key/button value.
+ */
 int uinput_find_key(const char *prefix, const char *key) {
     if (key[0] >= '0' && key[0] <= '9') {
         const char *ep = key;
@@ -57,18 +89,39 @@ ON_UNKN_KEY:
     return id;
 }
 
+/**
+ * List of primary relative axes.
+ *
+ * There are two sets (main and alternative), three axes in each.
+ */
 const int UINPUT_MAIN_REL_AXES[2][3] = {
     { REL_X,  REL_Y,  REL_Z  },
     { REL_RX, REL_RY, REL_RZ }
 };
+/**
+ * List of primary absolute axes.
+ *
+ * There are two sets (main and alternative), three axes in each.
+ */
 const int UINPUT_MAIN_ABS_AXES[2][3] = {
     { ABS_X,  ABS_Y,  ABS_Z  },
     { ABS_RX, ABS_RY, ABS_RZ }
 };
+/**
+ * List of wheel axes.
+ *
+ * There are two axes (main and horizontal).
+ */
 const int UINPUT_MAIN_WHEEL_AXES[2]  = {
     REL_WHEEL,
     REL_HWHEEL
 };
+/**
+ * Map of high-resolution wheel axes.
+ *
+ * Each element contains: low-resolution axis code, high-resolution
+ * axis code, conversion factor.
+ */
 const struct udotool_hires_axis UINPUT_HIRES_AXIS[] = {
     { REL_WHEEL,  REL_WHEEL_HI_RES,  120 },
     { REL_HWHEEL, REL_HWHEEL_HI_RES, 120 },
@@ -77,6 +130,9 @@ const struct udotool_hires_axis UINPUT_HIRES_AXIS[] = {
 
 #define DEF_KEY(V) { #V, V }
 
+/**
+ * List of known relative axes.
+ */
 const struct udotool_obj_id UINPUT_REL_AXES[] = {
     // Regular axes: mouse, touchpad, gamepad (left stick)
     DEF_KEY(REL_X),
@@ -95,6 +151,9 @@ const struct udotool_obj_id UINPUT_REL_AXES[] = {
     { NULL }
 };
 
+/**
+ * List of known absolute axes.
+ */
 const struct udotool_obj_id UINPUT_ABS_AXES[] = {
     // Regular axes
     DEF_KEY(ABS_X),
@@ -142,6 +201,9 @@ const struct udotool_obj_id UINPUT_ABS_AXES[] = {
     { NULL }
 };
 
+/**
+ * List of known key/button names.
+ */
 const struct udotool_obj_id UINPUT_KEYS[] = {
     // Main kbd, row 1 (esc - backspace)
     DEF_KEY(KEY_ESC),
