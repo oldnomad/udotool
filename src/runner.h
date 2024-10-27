@@ -54,7 +54,7 @@ struct udotool_ctrl {
     int         cond;    ///< If zero, this is a loop.
     int         count;   ///< Remaining iterations (loop only).
     struct timeval
-                rtime;   ///< End timestamp.
+                etime;   ///< End timestamp.
     off_t       offset;  ///< Back offset (loop only).
 };
 

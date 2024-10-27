@@ -16,6 +16,24 @@
 #include "uinput-func.h"
 
 /**
+ * Maximum number of decimal characters in a loop count.
+ *
+ * Note that this overshoots the exact value, e.g. for a 32-bit integer
+ * it gives 11 (exact value is 10), and for a 64-bit one it gives 22
+ * (exact value is 19).
+ */
+#define MAX_COUNT_TEXT  ((sizeof(int)*CHAR_BIT - 1)/3 + 1)
+/**
+ * Maximum number of characters in a loop remaining time.
+ *
+ * Our minimal step is 1 millisecond, so it's 3 characters after
+ * the decimal separator, and our maximum value is 1 day, that's
+ * 5 characters before the decimal separator. We also add the separator
+ * itself, and make sure we don't overflow for negative values.
+ */
+#define MAX_RTIME_TEXT  10
+
+/**
  * Command option codes.
  */
 enum {
@@ -225,26 +243,54 @@ static int print_help(int argc, const char *const argv[]) {
 /**
  * Calculate end time for a timed operation.
  *
- * @param info   verb for which the value is calculated.
- * @param rtime  time, in seconds.
- * @param pval   pointer to buffer for calculated timestamp.
- * @return       zero on success, or `-1` on error.
+ * @param rtime   time, in seconds.
+ * @param currts  pointer to current timestamp.
+ * @param endts   pointer to buffer for calculated timestamp.
+ * @return        zero on success, or `-1` on error.
  */
-static int calc_rtime(const struct udotool_verb_info *info, double rtime, struct timeval *pval) {
+static int calc_rtime(double rtime, const struct timeval *currts, struct timeval *endts) {
     if (rtime == 0) {
-        timerclear(pval);
+        timerclear(endts);
         return 0;
-    }
-    if (gettimeofday(pval, NULL) < 0) {
-        log_message(-1, "%s: cannot get current time: %s", info->verb, strerror(errno));
-        return -1;
     }
     struct timeval tval;
     timerclear(&tval);
     tval.tv_sec = (time_t)rtime;
     tval.tv_usec = (suseconds_t)(USEC_PER_SEC * (rtime - tval.tv_sec));
-    timeradd(pval, &tval, pval);
+    timeradd(currts, &tval, endts);
     return 0;
+}
+
+/**
+ * Set environment variables for next loop iteration.
+ *
+ * @param ctrl    loop control state, or `NULL` to unset.
+ * @param currts  pointer to current timestamp.
+ */
+static void loop_setenv(const struct udotool_ctrl *ctrl, struct timeval *currts) {
+    if (ctrl == NULL) {
+        unsetenv("UDOTOOL_LOOP_COUNT");
+        unsetenv("UDOTOOL_LOOP_RTIME");
+        return;
+    }
+    char cbuf[MAX_COUNT_TEXT + 1], rbuf[MAX_RTIME_TEXT];
+    snprintf(cbuf, sizeof(cbuf), "%d", ctrl->count);
+    if (timerisset(&ctrl->etime)) {
+        struct timeval tval;
+        timerclear(&tval);
+        timersub(&ctrl->etime, currts, &tval);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation"
+        // Yes, this can overflow, but we check the result below
+        int ret = snprintf(rbuf, sizeof(rbuf), "%ld.%03u",
+            (long)tval.tv_sec, (unsigned)((tval.tv_usec + 500)/1000));
+#pragma GCC diagnostic pop
+        if (ret >= (int)sizeof(rbuf))
+            strcpy(rbuf, "ERR");
+    } else
+        strcpy(rbuf, "*");
+    setenv("UDOTOOL_LOOP_COUNT", cbuf, 1);
+    setenv("UDOTOOL_LOOP_RTIME", rbuf, 1);
 }
 
 /**
@@ -330,7 +376,7 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
     }
     int key;
     double value;
-    struct timeval tval;
+    struct timeval endts, currts;
     off_t offset;
     struct udotool_ctrl *ctrl;
     switch (info->cmd) {
@@ -345,23 +391,28 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
                 return -1;
             }
         }
-        if (calc_rtime(info, rtime, &tval) < 0)
+        if (gettimeofday(&currts, NULL) < 0) {
+            log_message(-1, "%s: cannot get current time: %s", info->verb, strerror(errno));
             return -1;
-        if (!timerisset(&tval) && repeat == 0) {
+        }
+        if (calc_rtime(rtime, &currts, &endts) < 0)
+            return -1;
+        if (!timerisset(&endts) && repeat == 0) {
             log_message(-1, "%s: either counter or time should be specified", info->verb);
             return -1;
         }
         if (repeat == 0)
             repeat = INT_MAX;
-        log_message(1, "%s: counter = %d, run time = %lu.%06lu", info->verb,
-            repeat, (unsigned long)tval.tv_sec, (unsigned long)tval.tv_usec);
+        log_message(1, "%s: counter = %d, end time = %lu.%06lu", info->verb,
+            repeat, (unsigned long)endts.tv_sec, (unsigned long)endts.tv_usec);
         if ((offset = run_ctxt_tell_line(ctxt)) == (off_t)-1)
             return -1;
         if (ctxt->depth >= (MAX_CTRL_DEPTH - 1)) {
             log_message(-1, "%s: too many levels (max %d)", info->verb, MAX_CTRL_DEPTH);
             return -1;
         }
-        ctxt->stack[ctxt->depth++] = (struct udotool_ctrl){ .count = repeat, .rtime = tval, .offset = offset };
+        ctxt->stack[ctxt->depth++] = (struct udotool_ctrl){ .count = repeat, .etime = endts, .offset = offset };
+        loop_setenv(&ctxt->stack[ctxt->depth - 1], &currts);
         return 0;
     case CMD_IF:
         if (run_parse_condition(info, argc, argv, &repeat) < 0)
@@ -386,21 +437,28 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
         ctrl = &ctxt->stack[ctxt->depth - 1];
         if (ctrl->cond == 0) {
             ctrl->count--;
-            if (gettimeofday(&tval, NULL) < 0) {
+            if (gettimeofday(&currts, NULL) < 0) {
                 log_message(-1, "%s: cannot get current time: %s", info->verb, strerror(errno));
                 return -1;
             }
-            if (ctrl->count <= 0 || (timerisset(&ctrl->rtime) && !timercmp(&ctrl->rtime, &tval, >))) {
+            if (ctrl->count <= 0 || (timerisset(&ctrl->etime) && !timercmp(&ctrl->etime, &currts, >))) {
                 log_message(1, "%s: loop ended, counter = %d, current time = %lu.%06lu", info->verb,
-                    ctrl->count, (unsigned long)tval.tv_sec, (unsigned long)tval.tv_usec);
+                    ctrl->count, (unsigned long)currts.tv_sec, (unsigned long)currts.tv_usec);
                 ctxt->depth--;
+                loop_setenv(NULL, &currts);
+                for (size_t depth = ctxt->depth; depth > 0; depth--)
+                    if (ctxt->stack[ctxt->depth - 1].cond == 0) {
+                        loop_setenv(&ctxt->stack[ctxt->depth - 1], &currts);
+                        break;
+                    }
                 return 0;
             }
             log_message(1, "%s: continue, counter = %d, current time = %lu.%06lu", info->verb,
-                ctrl->count, (unsigned long)tval.tv_sec, (unsigned long)tval.tv_usec);
+                ctrl->count, (unsigned long)currts.tv_sec, (unsigned long)currts.tv_usec);
             int ret;
             if ((ret = run_ctxt_jump_line(ctxt, ctrl->offset)) != 0)
                 return ret;
+            loop_setenv(ctrl, &currts);
         } else
             ctxt->depth--;
         return 0;

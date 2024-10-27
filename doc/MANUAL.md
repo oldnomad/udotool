@@ -57,6 +57,12 @@ plus following variables:
   becomes available only when the `uinput` device is created, so if you
   need it before any input emulation command, you should use `udotool`
   command `open` (see below).
+- `UDOTOOL_LOOP_COUNT` in a loop contains remaining number of iterations.
+  If the loop is not limited by iteration count, initial number of
+  iterations is `INT_MAX`.
+- `UDOTOOL_LOOP_RTIME` in a loop contains remaining time (in seconds
+  and parts of seconds). If the loop is not limited by time, the variable
+  contains single asterisk character (`*`).
 
 ### Condition expressions
 

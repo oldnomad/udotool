@@ -74,6 +74,12 @@ from a script contains all environment variables available to
 - **$UDOTOOL_SYSNAME** contains virtual device directory name under
   **/sys/devices/virtual/input/**. It becomes available when
   emulation device is initialized.
+- **$UDOTOOL_LOOP_COUNT** in a loop contains remaining number of
+  iterations. If the loop is not limited by iteration count, initial
+  number of iterations is **INT_MAX**.
+- **$UDOTOOL_LOOP_RTIME** in a loop contains remaining time (in seconds
+  and parts of seconds). If the loop is not limited by time, the
+  variable contains single asterisk character.
 
 ## Generic commands
 
@@ -287,6 +293,18 @@ to determine which keys it uses.
  script and contains virtual device directory name under
  **/sys/devices/virtual/input/**. It becomes available when emulation device
  is initialized.
+
+**UDOTOOL_LOOP_COUNT**
+:   This environment variable is set for commands called from a **udotool**
+ script in a loop. It contains remaining number of iterations for the loop.
+ If the loop is not limited by iteration count, initial number of iterations
+ is **INT_MAX**.
+
+**UDOTOOL_LOOP_RTIME**
+:   This environment variable is set for commands called from a **udotool**
+ script in a loop. It contains remaining iteration time for the loop
+ (in seconds and parts of seconds). If the loop is not limited by time, the
+ variable contains single asterisk character.
 
 **UDOTOOL_SETTLE_TIME**
 :   If set, this environment variable overrides default device settle time
