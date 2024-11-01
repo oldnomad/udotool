@@ -79,6 +79,9 @@ static const struct udotool_verb_info KNOWN_VERBS[] = {
     { "else",     CMD_ELSE,     0,  0, 0,
       NULL,
       NULL },
+    { "break",    CMD_BREAK,    0,  1, 0,
+      "[<n>]",
+      "Break from one or more loops." },
     { "end",      CMD_END,      0,  0, 0,
       NULL,
       NULL },
@@ -424,6 +427,49 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
     case CMD_ELSE:
         // If we are here, that means that `if` branch was taken
         ctxt->cond_omit = 1;
+        ctxt->cond_depth = 0;
+        return 0;
+    case CMD_BREAK:
+        if (argc > 0) {
+            if (run_parse_integer(info, argv[0], &repeat) < 0)
+                return -1;
+            if (repeat <= 0) {
+                log_message(-1, "%s: loop depth is out of range: %s", info->verb, argv[0]);
+                return -1;
+            }
+        } else
+            repeat = 1;
+        if (ctxt->depth <= 0) {
+            log_message(-1, "%s: mismatched context", info->verb);
+            return -1;
+        }
+        if (gettimeofday(&currts, NULL) < 0) {
+            log_message(-1, "%s: cannot get current time: %s", info->verb, strerror(errno));
+            return -1;
+        }
+        ctxt->cond_omit = 1;
+        ctxt->cond_depth = 0;
+        for (size_t d = ctxt->depth; d > 0; d--) {
+            ctrl = &ctxt->stack[d - 1];
+            if (repeat > 0) {
+                if (CTRL_IS_LOOP(ctrl))
+                    repeat--;
+                ctxt->cond_depth++;
+                ctxt->depth--;
+            } else if (CTRL_IS_LOOP(ctrl)) {
+                loop_setenv(ctrl, &currts);
+                break;
+            } else
+                loop_setenv(NULL, &currts);
+        }
+        if (repeat > 0) {
+            log_message(-1, "%s: mismatched context", info->verb);
+            return -1;
+        }
+        // We've overshot by 1
+        ctxt->cond_depth--;
+        ctxt->depth++;
+        log_message(1, "%s: going up %zu frames", info->verb, ctxt->cond_depth + 1);
         return 0;
     case CMD_END:
         if (ctxt->depth <= 0) {

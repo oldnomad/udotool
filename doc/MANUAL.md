@@ -221,6 +221,17 @@ This will emulate moving the mouse `$XCURSOR_SIZE` pixels to the
 right if environment variable `XCURSOR_SIZE` is less than 24,
 otherwise the mouse will move 24 pixels to the right.
 
+### BREAK
+
+Syntax: `break [<NUMBER>]`
+
+When used inside a loop, this command breaks from enclosing loop(s).
+By default it breaks from the innermost loop, but if an argument is
+specified, it can break from specified number of enclosing loops.
+
+If the specified argument exceeds the number of enclosing loops,
+or if the command is used not in a loop, an error is generated.
+
 ### EXIT
 
 Syntax: `exit`

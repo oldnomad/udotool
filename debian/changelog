@@ -4,6 +4,7 @@ udotool (1.6) UNRELEASED; urgency=medium
   * NEW: Option `--settle-time` to specify device settle time.
   * NEW: Use environment variables to override some defaults.
   * NEW: Environment variables `UDOTOOL_LOOP_COUNT` and `UDOTOOL_LOOP_RTIME` are set in a loop.
+  * NEW: Command `break`.
 
  -- Alec Kojaev <alec.kojaev@gmail.com>  Sun, 13 Oct 2024 23:41:37 +0300
 

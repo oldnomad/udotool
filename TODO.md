@@ -8,4 +8,3 @@
 ## Script language
 
 - Loop with boolean condition.
-- Break from loop.

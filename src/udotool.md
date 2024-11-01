@@ -122,6 +122,11 @@ from a script contains all environment variables available to
  block of lines after **else** (if specified). See section
  **CONDITIONS** below for syntax of conditions.
 
+**break** [_depth_]
+:   In a loop, break from enclosing loop(s). By default this command
+ breaks from the innermost loop, but if _depth_ is specified, it
+ can break from specified number of enclosing loops.
+
 **exit**
 :   Terminate execution of current script.
 

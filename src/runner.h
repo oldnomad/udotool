@@ -14,6 +14,7 @@ enum {
     CMD_LOOP = 0x100,
     CMD_IF,
     CMD_ELSE,
+    CMD_BREAK,
     CMD_END,
     CMD_SCRIPT,
     CMD_EXIT,

@@ -177,7 +177,7 @@ static int ctxt_drop_lines(struct udotool_exec_context *ctxt) {
 static int ctxt_run_line(struct udotool_exec_context *ctxt, char *line) {
     static const char WHITESPACE[] = " \t\r\n\f\v";
     if (ctxt->cond_omit) {
-        log_message(4, "%s[%u]: skipping line: %s", ctxt->filename, ctxt->lineno, line);
+        log_message(4, "%s[%u]: [%zu/%zu] skipping line: %s", ctxt->filename, ctxt->lineno, ctxt->depth, ctxt->cond_depth, line);
         const char *ifs = getenv("IFS");
         if (ifs == NULL)
             ifs = WHITESPACE;
@@ -206,7 +206,7 @@ static int ctxt_run_line(struct udotool_exec_context *ctxt, char *line) {
         }
         return 0;
     }
-    log_message(4, "%s[%u]: executing line: %s", ctxt->filename, ctxt->lineno, line);
+    log_message(4, "%s[%u]: [%zu/%zu] executing line: %s", ctxt->filename, ctxt->lineno, ctxt->depth, ctxt->cond_depth, line);
     wordexp_t words;
     words.we_wordv = NULL;
     int ret = wordexp(line, &words, WRDE_SHOWERR);
