@@ -18,7 +18,7 @@
 #define UINPUT_ABS_MAXVALUE 1000000 ///< Maximum absolute axis position.
 
 #define NSEC_PER_SEC          1.0e9 ///< Nanoseconds per second.
-#define USEC_PER_SEC          1.0e6 ///< Microseconds per second.
+#define USEC_PER_SEC        1000000 ///< Microseconds per second.
 
 extern int         CFG_DRY_RUN;
 extern const char *CFG_DRY_RUN_PREFIX;

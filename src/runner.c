@@ -16,22 +16,16 @@
 #include "uinput-func.h"
 
 /**
- * Maximum number of decimal characters in a loop count.
+ * Maximum number of digits in a decimal representation.
  *
  * Note that this overshoots the exact value, e.g. for a 32-bit integer
  * it gives 11 (exact value is 10), and for a 64-bit one it gives 22
  * (exact value is 19).
- */
-#define MAX_COUNT_TEXT  ((sizeof(int)*CHAR_BIT - 1)/3 + 1)
-/**
- * Maximum number of characters in a loop remaining time.
  *
- * Our minimal step is 1 millisecond, so it's 3 characters after
- * the decimal separator, and our maximum value is 1 day, that's
- * 5 characters before the decimal separator. We also add the separator
- * itself, and make sure we don't overflow for negative values.
+ * @param sz  size of an integer type.
+ * @return maximum number of digits.
  */
-#define MAX_RTIME_TEXT  10
+#define MAX_VALUE_TEXT(sz) (((sz)*CHAR_BIT - 1)/3 + 1)
 
 /**
  * Command option codes.
@@ -273,20 +267,19 @@ static void loop_setenv(const struct udotool_ctrl *ctrl, struct timeval *currts)
         unsetenv("UDOTOOL_LOOP_RTIME");
         return;
     }
-    char cbuf[MAX_COUNT_TEXT + 1], rbuf[MAX_RTIME_TEXT];
+    char cbuf[MAX_VALUE_TEXT(sizeof(ctrl->count)) + 1];
+    char rbuf[MAX_VALUE_TEXT(sizeof(time_t)) + 5];
     snprintf(cbuf, sizeof(cbuf), "%d", ctrl->count);
     if (timerisset(&ctrl->etime)) {
         struct timeval tval;
         timerclear(&tval);
         timersub(&ctrl->etime, currts, &tval);
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wformat-truncation"
-        // Yes, this can overflow, but we check the result below
-        int ret = snprintf(rbuf, sizeof(rbuf), "%ld.%03u",
-            (long)tval.tv_sec, (unsigned)((tval.tv_usec + 500)/1000));
-#pragma GCC diagnostic pop
-        if (ret >= (int)sizeof(rbuf))
+        time_t sec = tval.tv_sec;
+        unsigned msec = (unsigned)((tval.tv_usec + 500)/1000);
+        if (sec < 0 || msec > 1000)
             strcpy(rbuf, "ERR");
+        else
+            snprintf(rbuf, sizeof(rbuf), "%ld.%03u", (long)tval.tv_sec, msec);
     } else
         strcpy(rbuf, "*");
     setenv("UDOTOOL_LOOP_COUNT", cbuf, 1);
