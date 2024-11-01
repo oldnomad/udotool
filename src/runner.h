@@ -56,6 +56,9 @@ struct udotool_ctrl {
     struct timeval
                 etime;   ///< End timestamp.
     off_t       offset;  ///< Back offset (loop only).
+#define CTRL_COND_LOOP 0
+#define CTRL_COND_IF   1
+#define CTRL_IS_LOOP(ctrl) ((ctrl)->cond == 0)
 };
 
 /**

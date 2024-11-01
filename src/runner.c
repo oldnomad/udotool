@@ -411,7 +411,10 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
             log_message(-1, "%s: too many levels (max %d)", info->verb, MAX_CTRL_DEPTH);
             return -1;
         }
-        ctxt->stack[ctxt->depth++] = (struct udotool_ctrl){ .count = repeat, .etime = endts, .offset = offset };
+        ctxt->stack[ctxt->depth++] = (struct udotool_ctrl){
+            .cond = CTRL_COND_LOOP,
+            .count = repeat, .etime = endts, .offset = offset
+        };
         loop_setenv(&ctxt->stack[ctxt->depth - 1], &currts);
         return 0;
     case CMD_IF:
@@ -423,7 +426,7 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
             log_message(-1, "%s: too many levels (max %d)", info->verb, MAX_CTRL_DEPTH);
             return -1;
         }
-        ctxt->stack[ctxt->depth++] = (struct udotool_ctrl){ .cond = 1 };
+        ctxt->stack[ctxt->depth++] = (struct udotool_ctrl){ .cond = CTRL_COND_IF };
         return 0;
     case CMD_ELSE:
         // If we are here, that means that `if` branch was taken
@@ -435,7 +438,7 @@ static int run_verb(struct udotool_exec_context *ctxt, const struct udotool_verb
             return -1;
         }
         ctrl = &ctxt->stack[ctxt->depth - 1];
-        if (ctrl->cond == 0) {
+        if (CTRL_IS_LOOP(ctrl)) {
             ctrl->count--;
             if (gettimeofday(&currts, NULL) < 0) {
                 log_message(-1, "%s: cannot get current time: %s", info->verb, strerror(errno));
