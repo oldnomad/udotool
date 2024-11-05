@@ -13,7 +13,7 @@ udotool (1.5) unstable; urgency=medium
   * NEW: Can now specify tweaks in addition to quirks.
   * NEW: New tweak `NOMMAN` for memory-constrained systems.
   * NEW: Command `exit`.
-  * CHANGE: Command `endloop` renamed to `end`.
+  * CHANGED: Command `endloop` renamed to `end`.
   * NEW: Command `if`/`else`.
 
  -- Alec Kojaev <alec.kojaev@gmail.com>  Sun, 13 Oct 2024 18:28:44 +0300
