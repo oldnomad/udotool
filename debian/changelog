@@ -1,4 +1,4 @@
-udotool (1.6) UNRELEASED; urgency=medium
+udotool (1.6) unstable; urgency=medium
 
   * NEW: Wait for settle time after device setup.
   * NEW: Option `--settle-time` to specify device settle time.
@@ -6,7 +6,7 @@ udotool (1.6) UNRELEASED; urgency=medium
   * NEW: Environment variables `UDOTOOL_LOOP_COUNT` and `UDOTOOL_LOOP_RTIME` are set in a loop.
   * NEW: Command `break`.
 
- -- Alec Kojaev <alec.kojaev@gmail.com>  Sun, 13 Oct 2024 23:41:37 +0300
+ -- Alec Kojaev <alec.kojaev@gmail.com>  Mon, 11 Nov 2024 19:29:57 +0300
 
 udotool (1.5) unstable; urgency=medium
 
