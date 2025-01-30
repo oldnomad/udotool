@@ -7,10 +7,12 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <linux/uinput.h>
@@ -45,6 +47,12 @@ static struct input_absinfo UINPUT_AXIS_DEF = {
     .flat = 0,
     .resolution = 0, // unit/mm for main axes, unit/radian for ABS_R{X,Y,Z}
 };
+
+/**
+ * Open callback and its data.
+ */
+static udotool_open_callback_t UINPUT_OPEN_CBK = NULL;
+static void *UINPUT_OPEN_CBK_DATA = NULL;
 
 /**
  * UINPUT device handle, or `-1` if not open yet.
@@ -128,6 +136,62 @@ int uinput_set_option(int option, const char *value) {
         return -1;
     }
     return 0;
+}
+
+/**
+ * Get UINPUT option.
+ *
+ * @param option  option code.
+ * @param buffer  pointer to buffer for option value.
+ * @param bufsize buffer size.
+ * @return        zero on success, or `-1` on error.
+ */
+int uinput_get_option(int option, char *buffer, size_t bufsize) {
+    size_t len;
+    const char *pval;
+    char intbuf[32];
+
+    switch (option) {
+    case UINPUT_OPT_DEVICE:
+        pval = UINPUT_DEVICE;
+        break;
+    case UINPUT_OPT_DEVNAME:
+        pval = UINPUT_DEVNAME;
+        break;
+    case UINPUT_OPT_DEVID:
+        snprintf(intbuf, sizeof(intbuf), "0x%04X:0x%04X:0x%04X",
+            UINPUT_ID.vendor, UINPUT_ID.product, UINPUT_ID.version);
+        pval = intbuf;
+        break;
+    case UINPUT_OPT_SETTLE:
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation"
+        // Truncation cannot happen, since we limit settle time to 86400 seconds or less
+        snprintf(intbuf, sizeof(intbuf), "%.6f", UINPUT_SETTLE_TIME);
+#pragma GCC diagnostic pop
+        pval = intbuf;
+        break;
+    default:
+        log_message(-1, "UINPUT: unrecognized option code %d", option);
+        return -1;
+    }
+    len = strlen(pval);
+    if (len >= bufsize)
+        len = bufsize;
+    memcpy(buffer, pval, len);
+    buffer[len] = '\0';
+    return 0;
+}
+
+/**
+ * Set UINPUT open callback.
+ *
+ * @param callback  callback function.
+ * @param data      callback data.
+ */
+void uinput_set_open_callback(udotool_open_callback_t callback, void *data) {
+    UINPUT_OPEN_CBK = callback;
+    UINPUT_OPEN_CBK_DATA = data;
 }
 
 /**
@@ -250,7 +314,7 @@ static int uinput_setup(int fd) {
 /**
  * Create emulation device, unless already created.
  *
- * On dry run this skips device creation, so `$UDOTOOL_SYSNAME` will be empty.
+ * On dry run this skips device creation, so open callback won't be called.
  *
  * @return  zero on success, or `-1` on error.
  */
@@ -277,22 +341,27 @@ int uinput_open(void) {
     char sysname[PATH_MAX];
     if (uinput_ioctl_ptr(UINPUT_FD, "UI_GET_SYSNAME", UI_GET_SYSNAME(sizeof(sysname)), sysname) == 0) {
         log_message(1, "UINPUT: opened device %s", sysname);
-        setenv("UDOTOOL_SYSNAME", sysname, 1);
+        if (UINPUT_OPEN_CBK != NULL)
+            (*UINPUT_OPEN_CBK)(sysname, UINPUT_OPEN_CBK_DATA);
     }
     unsigned version = 0;
     if (uinput_ioctl_ptr(UINPUT_FD, "UI_GET_VERSION", UI_GET_VERSION, &version) == 0)
         log_message(1, "UINPUT: protocol version 0x%04X", version);
 
     log_message(2, "UINPUT: waiting to settle");
-    cmd_sleep(UINPUT_SETTLE_TIME, 1);
+    struct timespec tval;
+    memset(&tval, 0, sizeof(tval));
+    tval.tv_sec = (time_t)UINPUT_SETTLE_TIME;
+    tval.tv_nsec = (long)(NSEC_PER_SEC * (UINPUT_SETTLE_TIME - tval.tv_sec));
+    log_message(2, "UINPUT: sleeping for %ld seconds and %ld nanoseconds", (long)tval.tv_sec, tval.tv_nsec);
+    if (nanosleep(&tval, NULL) < 0)
+        log_message(-1, "UINPUT: error while sleeping: %s", strerror(errno));
 
     return 0;
 }
 
 /**
  * Destroy emulation device, if created.
- *
- * Note that this doesn't unset `$UDOTOOL_SYSNAME`.
  */
 void uinput_close() {
     if (UINPUT_FD < 0)

@@ -59,76 +59,29 @@ starting with two dashes ('-'). A summary of options is included below.
 
 # COMMANDS
 
-Unless specified otherwise:
+`udotool` uses Jim Tcl, a small-footprint dialect of Tcl.
+Documentation for Jim Tcl is available at <https://jim.tcl.tk/>.
+Documentation for Tcl language is available at <https://www.tcl-lang.org/>.
 
-- Command and option names are case-sensitive.
-- Axis and key names are case-insensitive.
-- Time is specified in seconds and parts of seconds.
-- Loop and repeat counters are integer.
-- For other values see section **VALUE UNITS** below.
-
-Environment available to scripts and to all commands invoked
-from a script contains all environment variables available to
-`udotool` itself, plus following variables:
-
-- **$UDOTOOL_SYSNAME** contains virtual device directory name under
-  **/sys/devices/virtual/input/**. It becomes available when
-  emulation device is initialized.
-- **$UDOTOOL_LOOP_COUNT** in a loop contains remaining number of
-  iterations. If the loop is not limited by iteration count, initial
-  number of iterations is **INT_MAX**.
-- **$UDOTOOL_LOOP_RTIME** in a loop contains remaining time (in seconds
-  and parts of seconds). If the loop is not limited by time, the
-  variable contains single asterisk character.
+`udotool` extends the language with commands listed below.
 
 ## Generic commands
 
-**sleep** _seconds_
-:   Wait for specified time. Time is given in seconds, and may be
- fractional. Minimum delay is **0.001** (1 millisecond), maximum
- is **86400** (1 day).
+**info axis**
+:   Return a list of all known axes. Each element of the list
+ is a pair of axis name and axis code.
 
-**exec** [**-detach**] _command_ [_arg_...]
-:   Execute specified command. If option **-detach** is specified,
- the command will be executed in a separate session. If _command_
- does not include slashes, it will be searched in PATH.
+**info keys**
+:   Return a list of all known keys. Each element of the list
+ us a pair of key name and key code.
 
-**echo** _arg_...
-:   Print specified arguments to standard output.
-
-**set** _name_ [_value_]
-:   Set environment variable _name_ to value _value_, or unset it
- if _value_ is not specified.
-
-**script** [{_file_ | **-**}]
-:   Execute commands from specified file. If no file name is given or
- if the file name is a single minus sign (**-**), commands will be
- read from the standard input.
-
-**help** [{_command_ | **-axis** | **-keys**}...]
-:   Print help on commands. If no arguments are specified, **help**
- will print description of all supported commands. Arguments
- **-axis** and **-keys** will make **help** print lists of known
- axes and keys, correspondingly.
-
-**loop** [**-time** _seconds_] [_num_] &lt;NL&gt; ... &lt;NL&gt; **end**
-:   Execute lines between **loop** and corresponding **end**
- no more than _num_ times. If option **-time** is specified, the
- loop will be repeated for no more than specified time.
-
-**if** _cond_ &lt;NL&gt; ... &lt;NL&gt; [**else** &lt;NL&gt; ... &lt;NL&gt;] **end**
-:   Execute lines conditionally. If _cond_ is true, execute the
- block of lines after **if**, otherwise skip it, and execute the
- block of lines after **else** (if specified). See section
- **CONDITIONS** below for syntax of conditions.
-
-**break** [_depth_]
-:   In a loop, break from enclosing loop(s). By default this command
- breaks from the innermost loop, but if _depth_ is specified, it
- can break from specified number of enclosing loops.
-
-**exit**
-:   Terminate execution of current script.
+**timedloop** _seconds_ [_num_] [_vartime_] [_varnum_] _body_
+:   Execute _body_ for at least _seconds_ time, but no more than
+ _num_ times (if specified). If _vartime_ is specified and not
+ an empty string, variable with this name will contain time
+ elapsed since start of loop. If _varnum_ is specified and not
+ an empty string, variable with this name will contain number
+ of already executed iterations.
 
 ## Input emulation commands
 
@@ -165,31 +118,57 @@ from a script contains all environment variables available to
  **-r** is specified, axes **ABS_RX**, **ABS_RY**, and **ABS_RZ** are
  used instead. See also section **VALUE UNITS** below.
 
-## Low-level input simulation commands
+## Low-level input emulation commands
 
 **open**
 :   Ensure that the input device is open and initialized.
  If this command was not specified, initialization happens
- before the first emulation command. Use this command if you have
- an **exec** before the first emulation command, and you want the
- device to be present when the external command is executed.
+ before the first emulation command. Note that initialization
+ takes some time (settle time).
 
-**input** {*axis***=***value* | **KEYDOWN=***key* | **KEYUP=***key*}...
+**input** {*axis***=***value* | **KEYDOWN=***key* | **KEYUP=***key* | **SYNC**}...
 :   Emulate a complex input message. This command allows
  you emulate a complex message that includes data for
  several axes and keys/buttons. This may be needed if you want to
  emulate, for example, some complex gamepad combo. See also sections
  **VALUE UNITS**, **AXIS NAMES** and **KEY NAMES** below.
 
+**input** **{** *axis* *value* **}**...
+:   This is an alternative syntax for **input** command. It interprets
+ arguments not as strings, but as Tcl lists, each containing an axis name
+ and a value. This syntax can be intermixed with the string-argument syntax,
+ i.e. you can mix Tcl lists and "="-separated strings. However, this syntax
+ can be used only in scripts.
+
+## Variables and environment
+
+`udotool` sets several global Tcl variables. Unless stated otherwise,
+modifying these variables in the script has no effect.
+
+- **::udotool::debug** contains debug verbosity level. Modifying this
+  variable may affect tracing Tcl commands, but has no effect on other
+  debug messages.
+- **::udotool::dry_run** is non-zero on dry run.
+- **::udotool::device** contains UINPUT device path.
+- **::udotool::dev_name** contains emulated device name.
+- **::udotool::dev_id** contains emulated device ID.
+- **::udotool::settle_time** contains device settle time (in seconds).
+- **::udotool::default_delay** contains default delay between key/button
+  events in command **key**. Modifying this variable affects all following
+  commands.
+- **::udotool::sys_name** contains virtual device directory name under
+  **/sys/devices/virtual/input/**. It becomes available when
+  emulation device is initialized.
+
 # SCRIPTS
 
 Commands for **udotool** can be given in a script file, using command
-**script** or command-line option **-i** (**\-\-input**). Scripts
-can be also made executable with a shebang syntax:
+command-line option **-i** (**\-\-input**). Scripts can be also made
+executable with a shebang syntax:
 
 ```
 #!/usr/bin/udotool -i
-echo "This script emulates 10 left mouse button clicks"
+puts "This script emulates 10 left mouse button clicks"
 key -repeat 10 BTN_LEFT
 ```
 
@@ -197,43 +176,6 @@ key -repeat 10 BTN_LEFT
 line, to combine several options you can use only short options:
 **#!/usr/bin/udotool -vi** will work, but **#!/usr/bin/udotool -v -i**
 probably won't.
-
-In scripts, each command should be in a separate line. There is no
-syntax for breaking a command into several lines.
-
-Empty lines are ignored. Leading and trailing whitespace is ignored.
-
-Lines starting with hash (**#**) or semicolon (**;**), optionally with
-some whitespace before them, are treated as comments and ignored.
-
-Command lines are subject to POSIX-compatible word expansion and
-quote removal. That means that you can use all features (single quote,
-double quote, command substitution, and so on) available in standard
-POSIX-compatible shell.
-
-# CONDITIONS
-
-Command **if** supports condition expressions with following
-syntax (EBNF):
-
-```
-<condition>  := <or-term> "-or" <condition> | <or-term>
-<or-term>    := <and-term> "-and" <or-term> | <and-term>
-<and-term>   := <comparison>
-<comparison> := <value> CMP_OP <value> | <value>
-<value>      := "-not" <value> | "(" <condition> ")" | NUMBER
-```
-
-Here _NUMBER_ is a floating-point or integer number, and _CMP_OP_ is
-one of: "-eq", "-ne", "-lt", "-gt", "-le", or "-ge".
-
-For example:
-
-```
-if -not '(' "$a" -eq 1 -and "$b" -gt 2 ')' -or "$b" -gt 3
-  echo "Either $b is greater then 3, or it's not true that $a is 1 and $b is greater than 2"
-end
-```
 
 # VALUE UNITS
 
@@ -254,7 +196,7 @@ Values for various axes are specified in abstract "units":
 # AXIS NAMES
 
 Full list of supported axis names can be retrieved using command
-**help -axis**.
+**info axis**.
 
 Following axis names are supported at the moment:
 
@@ -277,39 +219,27 @@ Following axis names are supported at the moment:
     additional axes used by some digitizers.
   - **ABS_VOLUME**, **ABS_PROFILE**, **ABS_MISC**: special axes.
 
+Additionally, command **input** accepts pseudo-axis names:
+
+- **KEYDOWN**: axis value is a key or button to emulate a key/button press.
+- **KEYUP**: axis value is a key or button to emulate a key/button release.
+- **SYNC**: axis value is ignored, and a sync report (event border) is emulated.
+
 If you have the device that you want to emulate, you can use **evtest**(1)
 to determine which axes it uses.
 
 # KEY NAMES
 
 Full list of supported key names can be retrieved using command
-**help -keys**. **WARNING**: The list is huge!
+**info keys**. **WARNING**: The list is huge!
 
 If the key you want to emulate is not in the list, you can specify
-it as a number in decimal or (with prefix **0x**) hexadecimal.
+it as a number.
 
 If you have the device that you want to emulate, you can use **evtest**(1)
 to determine which keys it uses.
 
 # ENVIRONMENT
-
-**UDOTOOL_SYSNAME**
-:   This environment variable is set for commands called from a **udotool**
- script and contains virtual device directory name under
- **/sys/devices/virtual/input/**. It becomes available when emulation device
- is initialized.
-
-**UDOTOOL_LOOP_COUNT**
-:   This environment variable is set for commands called from a **udotool**
- script in a loop. It contains remaining number of iterations for the loop.
- If the loop is not limited by iteration count, initial number of iterations
- is **INT_MAX**.
-
-**UDOTOOL_LOOP_RTIME**
-:   This environment variable is set for commands called from a **udotool**
- script in a loop. It contains remaining iteration time for the loop
- (in seconds and parts of seconds). If the loop is not limited by time, the
- variable contains single asterisk character.
 
 **UDOTOOL_SETTLE_TIME**
 :   If set, this environment variable overrides default device settle time

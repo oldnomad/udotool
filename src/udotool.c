@@ -8,10 +8,12 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "udotool.h"
 #include "uinput-func.h"
 #include "config.h"
+#include "execute.h"
 
 /**
  * Full version string.
@@ -71,7 +73,7 @@ static const struct option LONG_OPTION[] = {
     { NULL }
 };
 
-static int  CFG_VERBOSITY = 0;        ///< Message verbosity level.
+int         CFG_VERBOSITY = 0;        ///< Message verbosity level.
 int         CFG_DRY_RUN = 0;          ///< Dry run mode.
 const char *CFG_DRY_RUN_PREFIX = "";  ///< Message prefix for dry run, or an empty string.
 
@@ -115,7 +117,7 @@ static void load_preset(int opt, const char *envname) {
 }
 
 int main(int argc, char *const argv[]) {
-    int opt, optidx;
+    int opt, optidx, has_file = 0;
     const char *input_file = NULL;
 
     load_preset(UINPUT_OPT_SETTLE, "UDOTOOL_SETTLE_TIME");
@@ -130,7 +132,9 @@ int main(int argc, char *const argv[]) {
         }
         switch (opt) {
         case 'i':
-            input_file = (optarg != NULL) ? optarg : "-";
+            has_file = 1;
+            if (optarg != NULL && strcmp(optarg, "-") != 0)
+                input_file = optarg;
             break;
         case 'n':
             CFG_DRY_RUN = 1;
@@ -150,7 +154,7 @@ int main(int argc, char *const argv[]) {
             return EXIT_FAILURE;
         }
     }
-    if (argc <= optind && input_file == NULL) {
+    if (argc <= optind && has_file == 0) {
         printf(USAGE_NOTICE, argv[0]);
         return EXIT_FAILURE;
     }
@@ -159,14 +163,14 @@ int main(int argc, char *const argv[]) {
         log_message(0, "%sno UINPUT actions will be performed\n", CFG_DRY_RUN_PREFIX);
 
     int ret;
-    if (input_file != NULL) {
+    if (has_file) {
         if (argc > optind) {
-            log_message(-1, "too many arguments for --input mode");
+            log_message(-1, "too many arguments for --input mode: %s", argv[optind]);
             ret = -1;
         } else
-            ret = run_script(input_file);
+            ret = exec_file(input_file);
     } else
-        ret = run_command(argc - optind, (const char *const*)&argv[optind]);
+        ret = exec_args(argc - optind, (const char *const*)&argv[optind]);
     uinput_close();
     return ret == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

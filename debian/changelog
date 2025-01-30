@@ -1,3 +1,9 @@
+udotool (2.0) unstable; urgency=medium
+
+  * MAJOR CHANGE: Internal script language is replaced by Jim Tcl.
+
+ -- Alec Kojaev <alec.kojaev@gmail.com>  Thu, 30 Jan 2025 17:56:48 +0300
+
 udotool (1.6) unstable; urgency=medium
 
   * NEW: Wait for settle time after device setup.

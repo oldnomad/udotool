@@ -6,6 +6,8 @@ Rules-Requires-Root: no
 Build-Depends:
  debhelper-compat (= 10),
  linux-libc-dev (>= 4.5),
+ libjim-dev (= 0.81),
+ xxd,
  pandoc,
  git,
  gettext-base,

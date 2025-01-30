@@ -1,5 +1,5 @@
 config.h
+exec-tcl.h
 *.o
 udotool
-run-eval
 *.man

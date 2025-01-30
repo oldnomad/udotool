@@ -2,36 +2,36 @@ INSTALL   = /usr/bin/install
 PANDOC    = /usr/bin/pandoc
 GIT       = /usr/bin/git
 ENVSUBST  = /usr/bin/envsubst
+XXD       = /usr/bin/xxd
 
 QUIRKS    = LIBINPUT
-TWEAKS    =
 
 CFLAGS   += -D_GNU_SOURCE \
     -Wall -Wextra -pedantic -Wshadow -Wunused -Wuninitialized \
     -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes \
     -Wformat=2 -Wformat-overflow=2 -Wformat-truncation=2 -Wformat-signedness
 CFLAGS   += $(foreach quirk,$(QUIRKS),-DUDOTOOL_$(quirk)_QUIRK)
-CFLAGS   += $(foreach tweak,$(TWEAKS),-DUDOTOOL_$(tweak)_TWEAK)
+LDLIBS   += -ljim
 
 SRC_FILES  = $(wildcard *.c)
-HDR_FILES  = $(wildcard *.h) config.h
+GEN_FILES  = config.h exec-tcl.h
+HDR_FILES  = $(wildcard *.h) $(GEN_FILES)
 OBJ_FILES  = $(patsubst %.c,%.o,$(SRC_FILES))
 EXE_FILE   = udotool
 MAN_FILE   = udotool.man
-TEST_FILES = run-eval
 
 all: $(EXE_FILE) $(MAN_FILE)
 
 $(EXE_FILE): $(OBJ_FILES)
-	$(CC) $(LDFLAGS) $(OBJ_FILES) -o $@
-
-run-eval: run-eval.c
-	$(CC) $(LDFLAGS) $(CFLAGS) -DRUN_EVAL_TEST $^ -o $@
+	$(CC) $(LDFLAGS) $(OBJ_FILES) $(LDLIBS) -o $@
 
 $(OBJ_FILES): $(HDR_FILES)
 
-config.h: config.h.template
+config.h: config.h.template ../.git/HEAD
 	GIT_VERSION=`$(GIT) describe --tags --match 'v[0-9]*' --always --dirty` $(ENVSUBST) <$< >$@
+
+exec-tcl.h: exec-tcl.tcl
+	$(XXD) -i <$< >$@
 
 .SUFFIXES: .md .man
 
@@ -47,7 +47,7 @@ install: $(EXE_FILE) $(MAN_FILE)
 	$(INSTALL) -D -t $(DESTDIR)$(prefix)/bin $(EXE_FILE)
 
 clean:
-	-$(RM) *.o $(EXE_FILE) $(MAN_FILE) $(TEST_FILES)
+	-$(RM) *.o $(EXE_FILE) $(MAN_FILE)
 
 distclean: clean
-	-$(RM) config.h
+	-$(RM) $(GEN_FILES)

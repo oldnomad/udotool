@@ -1,0 +1,8 @@
+udotool (2.0) unstable; urgency=medium
+
+  Starting from version 2.0, internal script language used by udotool
+  is now Tcl. That means that all existing scripts that use control
+  structures (loops, conditions, variable expansion, and so on) will
+  stop working.
+
+ -- Alec Kojaev <alec.kojaev@gmail.com>  Wed, 22 Jan 2025 02:10:23 +0300

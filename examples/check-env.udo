@@ -1,7 +1,8 @@
 #!./udotool -i
 open
-echo Environment:
-exec env
-echo ""
-echo Device name: "$(cat /sys/devices/virtual/input/$UDOTOOL_SYSNAME/name)"
-echo Device modalias: "$(cat /sys/devices/virtual/input/$UDOTOOL_SYSNAME/modalias)"
+puts "Environment:"
+foreach key [array names env] { puts "- $key=$env($key)" }
+puts ""
+puts [string cat "Device dirname:  " ${::udotool::sys_name}]
+puts [string cat "Device name:     " [exec cat /sys/devices/virtual/input/${::udotool::sys_name}/name]]
+puts [string cat "Device modalias: " [exec cat /sys/devices/virtual/input/${::udotool::sys_name}/modalias]]

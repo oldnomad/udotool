@@ -4,7 +4,3 @@
 
 - Tablet and touchscreen input.
 - Multitouch.
-
-## Script language
-
-- Loop with boolean condition.

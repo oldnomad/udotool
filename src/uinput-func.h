@@ -41,17 +41,20 @@ struct udotool_hires_axis {
     int divisor;  ///< Conversion factor.
 };
 
+/**
+ * Device open callback.
+ */
+typedef void (*udotool_open_callback_t)(const char *sysname, void *data);
+
 extern const struct udotool_obj_id UINPUT_REL_AXES[];
 extern const struct udotool_obj_id UINPUT_ABS_AXES[];
 extern const struct udotool_obj_id UINPUT_KEYS[];
 
 extern const struct udotool_hires_axis UINPUT_HIRES_AXIS[];
 
-extern const int UINPUT_MAIN_REL_AXES[2][3];
-extern const int UINPUT_MAIN_ABS_AXES[2][3];
-extern const int UINPUT_MAIN_WHEEL_AXES[2];
-
 int uinput_set_option(int option, const char *value);
+int uinput_get_option(int option, char *buffer, size_t bufsize);
+void uinput_set_open_callback(udotool_open_callback_t callback, void *data);
 
 int uinput_find_key(const char *prefix, const char *key);
 int uinput_find_axis(const char *prefix, const char *name, unsigned mask, int *pflag);

@@ -1,6 +1,6 @@
 #!./udotool -i
 set DELAY 5
-echo "Click will start in $DELAY seconds"
+puts "Click will start in $DELAY seconds"
 sleep $DELAY
 # Signal start
 exec /usr/bin/aplay /usr/share/sounds/sound-icons/start

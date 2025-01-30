@@ -90,33 +90,6 @@ ON_UNKN_KEY:
 }
 
 /**
- * List of primary relative axes.
- *
- * There are two sets (main and alternative), three axes in each.
- */
-const int UINPUT_MAIN_REL_AXES[2][3] = {
-    { REL_X,  REL_Y,  REL_Z  },
-    { REL_RX, REL_RY, REL_RZ }
-};
-/**
- * List of primary absolute axes.
- *
- * There are two sets (main and alternative), three axes in each.
- */
-const int UINPUT_MAIN_ABS_AXES[2][3] = {
-    { ABS_X,  ABS_Y,  ABS_Z  },
-    { ABS_RX, ABS_RY, ABS_RZ }
-};
-/**
- * List of wheel axes.
- *
- * There are two axes (main and horizontal).
- */
-const int UINPUT_MAIN_WHEEL_AXES[2]  = {
-    REL_WHEEL,
-    REL_HWHEEL
-};
-/**
  * Map of high-resolution wheel axes.
  *
  * Each element contains: low-resolution axis code, high-resolution
