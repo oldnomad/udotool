@@ -1,3 +1,10 @@
+udotool (2.1) unstable; urgency=medium
+
+  * CHANGE: Instead of extending command `info`, use our own command `names`.
+  * NEW: If command or script returns a result, print it in a human-friendly format.
+
+ -- Alec Kojaev <alec.kojaev@gmail.com>  Fri, 31 Jan 2025 22:23:48 +0300
+
 udotool (2.0) unstable; urgency=medium
 
   * MAJOR CHANGE: Internal script language is replaced by Jim Tcl.

@@ -28,10 +28,11 @@ Wayland, and even in console.
 The program follows the usual GNU command line syntax, with long options
 starting with two dashes ('-'). A summary of options is included below.
 
-**-i** [_file_], **\-\-input** [_file_]
+**-i** _file_, **\-\-input** [_file_]
 :   Read commands from a file or from standard input, instead of using
  the command line. File name **-** (single minus sign) can be used for
- standard input. If file name is omitted, default is to use standard input.
+ standard input. If file name is omitted (for long option only), the default
+ is to use standard input.
 
 **-n**, **\-\-dry-run**
 :   Do not execute input emulation commands. Generic commands will be executed anyway.
@@ -67,13 +68,10 @@ Documentation for Tcl language is available at <https://www.tcl-lang.org/>.
 
 ## Generic commands
 
-**info axis**
-:   Return a list of all known axes. Each element of the list
- is a pair of axis name and axis code.
-
-**info keys**
-:   Return a list of all known keys. Each element of the list
- us a pair of key name and key code.
+**names** _topic_
+:   Return a list of all known axes (for topic "axis") or keys
+ (for topic "key"). Each element of the list is a pair of a name
+ and a code.
 
 **timedloop** _seconds_ [_num_] [_vartime_] [_varnum_] _body_
 :   Execute _body_ for at least _seconds_ time, but no more than
@@ -143,7 +141,7 @@ Documentation for Tcl language is available at <https://www.tcl-lang.org/>.
 ## Variables and environment
 
 `udotool` sets several global Tcl variables. Unless stated otherwise,
-modifying these variables in the script has no effect.
+modifying these variables in the script has no effect on execution.
 
 - **::udotool::debug** contains debug verbosity level. Modifying this
   variable may affect tracing Tcl commands, but has no effect on other
@@ -196,7 +194,7 @@ Values for various axes are specified in abstract "units":
 # AXIS NAMES
 
 Full list of supported axis names can be retrieved using command
-**info axis**.
+**names axis**.
 
 Following axis names are supported at the moment:
 
@@ -231,7 +229,7 @@ to determine which axes it uses.
 # KEY NAMES
 
 Full list of supported key names can be retrieved using command
-**info keys**. **WARNING**: The list is huge!
+**names key**. **WARNING**: The list is huge!
 
 If the key you want to emulate is not in the list, you can specify
 it as a number.

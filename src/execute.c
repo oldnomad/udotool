@@ -21,10 +21,8 @@ static int         exec_deinit(Jim_Interp *interp, int err);
 static int exec_open     (Jim_Interp *interp, int argc, Jim_Obj *const*argv);
 static int exec_input    (Jim_Interp *interp, int argc, Jim_Obj *const*argv);
 static int exec_timedloop(Jim_Interp *interp, int argc, Jim_Obj *const*argv);
-static int exec_info     (Jim_Interp *interp, int argc, Jim_Obj *const*argv);
+static int exec_names    (Jim_Interp *interp, int argc, Jim_Obj *const*argv);
 static int exec_sleep    (Jim_Interp *interp, int argc, Jim_Obj *const*argv);
-
-#define MAX_INFO_SUBCMD 128 ///< Maximum number of `info` subcommands.
 
 /**
  * Extra Tcl commands.
@@ -37,7 +35,7 @@ static const struct exec_cmd {
     { "open",      exec_open,      NULL },
     { "input",     exec_input,     NULL },
     { "timedloop", exec_timedloop, NULL },
-    { "info",      exec_info,      "::internal::info"  },
+    { "names",     exec_names,     NULL },
     { "sleep",     exec_sleep,     "::internal::sleep" },
     { NULL }
 };
@@ -144,17 +142,15 @@ static Jim_Interp *exec_init() {
         return NULL;
     }
     for (const struct exec_cmd *cmd = COMMANDS; cmd->name != NULL; cmd++) {
-        Jim_Obj *old_cmd = NULL;
         if (cmd->old_name != NULL) {
             Jim_Obj *name = Jim_NewStringObj(interp, cmd->name, -1);
-            old_cmd = Jim_NewStringObj(interp, cmd->old_name, -1);
-            Jim_IncrRefCount(old_cmd);
-            if ((ret = Jim_RenameCommand(interp, name, old_cmd)) != JIM_OK) {
+            Jim_Obj *old_name = Jim_NewStringObj(interp, cmd->old_name, -1);
+            if ((ret = Jim_RenameCommand(interp, name, old_name)) != JIM_OK) {
                 exec_deinit(interp, ret);
                 return NULL;
             }
         }
-        if ((ret = Jim_CreateCommand(interp, cmd->name, cmd->proc, old_cmd, NULL)) != JIM_OK) {
+        if ((ret = Jim_CreateCommand(interp, cmd->name, cmd->proc, NULL, NULL)) != JIM_OK) {
             exec_deinit(interp, ret);
             return NULL;
         }
@@ -176,6 +172,41 @@ static Jim_Interp *exec_init() {
 }
 
 /**
+ * Print a (possibly complex) Tcl Object in a human-readable form.
+ *
+ * @param interp  interpreter.
+ * @param obj     object to print.
+ */
+static void print_object(Jim_Interp *interp, Jim_Obj *obj) {
+    if (obj == NULL)
+        return;
+    if (Jim_IsDict(obj)) {
+        int len = 0;
+        Jim_Obj **table = Jim_DictPairs(interp, obj, &len);
+        if (table != NULL && len > 0) {
+            for (int i = 0; i < len; i += 2) {
+                Jim_Obj *key = table[i];
+                Jim_Obj *val = table[i + 1];
+                log_message(0, "%s: %s", Jim_GetString(key, NULL), Jim_GetString(val, NULL));
+            }
+        }
+        return;
+    }
+    if (Jim_IsList(obj)) {
+        int len = Jim_ListLength(interp, obj);
+        for (int i = 0; i < len; i++) {
+            Jim_Obj *elem = Jim_ListGetIndex(interp, obj, i);
+            log_message(0, "- %s", Jim_GetString(elem, NULL));
+        }
+        return;
+    }
+    const char *text = Jim_GetString(obj, NULL);
+    if (*text == '\0')
+        return;
+    log_message(0, "%s", text);
+}
+
+/**
  * Destroy Tcl interpreter.
  *
  * @param interp  interpreter.
@@ -188,13 +219,10 @@ static int exec_deinit(Jim_Interp *interp, int err) {
     if (err == JIM_ERR)
         Jim_MakeErrorMessage(interp);
     Jim_Obj *result = Jim_GetResult(interp);
-    const char *res = Jim_GetString(result, NULL);
     if (err == JIM_ERR)
-        log_message(-1, "%s", res);
-    else {
-        if (res != NULL && *res != '\0')
-            log_message(0, "%s", res);
-    }
+        log_message(-1, "%s", Jim_GetString(result, NULL));
+    else
+        print_object(interp, result);
     ret = Jim_GetExitCode(interp);
     Jim_FreeInterp(interp);
     return ret;
@@ -458,68 +486,46 @@ static int exec_timedloop(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
 }
 
 /**
- * Tcl command: info (extension).
+ * Tcl command: names.
  */
-static int exec_info(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
-    static const char *commands[MAX_INFO_SUBCMD] = { NULL };
-    if (argc < 2) {
+static int exec_names(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
+    static const char *const commands[] = { "axis", "key", NULL };
+    if (argc != 2) {
         Jim_WrongNumArgs(interp, argc, argv, "subcommand ?args ...?");
         return JIM_ERR;
     }
-    Jim_Obj *old_cmd = Jim_CmdPrivData(interp);
-    int ret;
-    if (commands[0] == NULL) {
-        if ((ret = Jim_Eval(interp, "::internal::info -commands")) != JIM_OK)
-            return ret;
-        Jim_Obj *list = Jim_GetResult(interp);
-        commands[0] = "axis";
-        commands[1] = "keys";
-        int len = Jim_ListLength(interp, list);
-        if (len > (MAX_INFO_SUBCMD - 3))
-            len = MAX_INFO_SUBCMD - 3;
-        for (int idx = 0; idx < len; idx++) {
-             Jim_Obj *elem = Jim_ListGetIndex(interp, list, idx);
-             commands[idx + 2] = strdup(Jim_GetString(elem, NULL));
-        }
-        commands[len + 2] = NULL;
-    }
-    Jim_Obj *dup_subcmd = Jim_DuplicateObj(interp, argv[1]);
-    int subcmd = -1;
-    if (Jim_GetEnum(interp, dup_subcmd, commands, &subcmd, "subcommand", JIM_ERRMSG|JIM_ENUM_ABBREV) != JIM_OK) {
-        ret = Jim_CheckShowCommands(interp, dup_subcmd, commands);
-        Jim_FreeObj(interp, dup_subcmd);
-        return ret;
-    }
-    Jim_FreeObj(interp, dup_subcmd);
-    if (subcmd == 0) {
-        Jim_Obj *list = Jim_NewListObj(interp, NULL, 0);
+    int cmd = 0;
+    if (Jim_GetEnum(interp, argv[1], commands, &cmd, "subcommand", JIM_ERRMSG|JIM_ENUM_ABBREV) != JIM_OK)
+        return Jim_CheckShowCommands(interp, argv[1], commands);
+    Jim_Obj *result = NULL;
+    switch (cmd) {
+    case 0: // Axis names
+        result = Jim_NewListObj(interp, NULL, 0);
         for (const struct udotool_obj_id *axis = UINPUT_REL_AXES; axis->name != NULL; axis++) {
             Jim_Obj *elem = Jim_NewListObj(interp, NULL, 0);
             Jim_ListAppendElement(interp, elem, Jim_NewStringObj(interp, axis->name, -1));
             Jim_ListAppendElement(interp, elem, Jim_NewIntObj(interp, axis->value));
-            Jim_ListAppendElement(interp, list, elem);
+            Jim_ListAppendElement(interp, result, elem);
         }
         for (const struct udotool_obj_id *axis = UINPUT_ABS_AXES; axis->name != NULL; axis++) {
             Jim_Obj *elem = Jim_NewListObj(interp, NULL, 0);
             Jim_ListAppendElement(interp, elem, Jim_NewStringObj(interp, axis->name, -1));
             Jim_ListAppendElement(interp, elem, Jim_NewIntObj(interp, axis->value));
-            Jim_ListAppendElement(interp, list, elem);
+            Jim_ListAppendElement(interp, result, elem);
         }
-        Jim_SetResult(interp, list);
-        return JIM_OK;
-    }
-    if (subcmd == 1) {
-        Jim_Obj *list = Jim_NewListObj(interp, NULL, 0);
+        break;
+    case 1: // Key/button names
+        result = Jim_NewListObj(interp, NULL, 0);
         for (const struct udotool_obj_id *key = UINPUT_KEYS; key->name != NULL; key++) {
             Jim_Obj *elem = Jim_NewListObj(interp, NULL, 0);
             Jim_ListAppendElement(interp, elem, Jim_NewStringObj(interp, key->name, -1));
             Jim_ListAppendElement(interp, elem, Jim_NewIntObj(interp, key->value));
-            Jim_ListAppendElement(interp, list, elem);
+            Jim_ListAppendElement(interp, result, elem);
         }
-        Jim_SetResult(interp, list);
-        return JIM_OK;
+        break;
     }
-    return Jim_EvalObjPrefix(interp, old_cmd, argc - 1, &argv[1]);
+    Jim_SetResult(interp, result);
+    return JIM_OK;
 }
 
 /**
