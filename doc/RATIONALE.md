@@ -38,7 +38,7 @@ any scripts. The idea was to use external shell for all control, and my
 tool will only emit input events, in a true Unix way.
 
 Soon enough, it occurred to me that some control flow instructions needed
-for input emitaion scenarios, such as "repeat this block for certain time",
+for input emulation scenarios, such as "repeat this block for certain time",
 are non-trivial in most shells. So, I started implementing my own script
 language in `udotool`.
 

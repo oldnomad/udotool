@@ -110,7 +110,7 @@ Documentation for Tcl language is available at <https://www.tcl-lang.org/>.
 :   Emulate turning mouse wheel (or horizontal wheel if option **-h**
  is specified) by specified delta. See also section **VALUE UNITS** below.
 
-**position** [**-r**] _delta-x_ [_delta-y_ [_delta-z_]]
+**position** [**-r**] _abs-x_ [_abs-y_ [_abs-z_]]
 :   Emulate moving pointer to specified absolute position. This command
  usually uses axes **ABS_X**, **ABS_Y**, and **ABS_Z**, but if option
  **-r** is specified, axes **ABS_RX**, **ABS_RY**, and **ABS_RZ** are
