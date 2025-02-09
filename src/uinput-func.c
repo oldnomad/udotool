@@ -164,7 +164,12 @@ int uinput_get_option(int option, char *buffer, size_t bufsize) {
         pval = intbuf;
         break;
     case UINPUT_OPT_SETTLE:
+        if (UINPUT_SETTLE_TIME < MIN_SLEEP_SEC || UINPUT_SETTLE_TIME > MAX_SLEEP_SEC) {
+            log_message(-1, "UINPUT: error using settle time: %.6f", UINPUT_SETTLE_TIME);
+            return -1;
+        }
 #pragma GCC diagnostic push
+#pragma clang diagnostic ignored "-Wunknown-warning-option"
 #pragma GCC diagnostic ignored "-Wformat-truncation"
         // Truncation cannot happen, since we limit settle time to 86400 seconds or less
         snprintf(intbuf, sizeof(intbuf), "%.6f", UINPUT_SETTLE_TIME);

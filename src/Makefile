@@ -6,10 +6,19 @@ XXD       = /usr/bin/xxd
 
 QUIRKS    = LIBINPUT
 
-CFLAGS   += -D_GNU_SOURCE \
+IS_CLANG  = $(findstring clang,$(shell $(CC) --version))
+
+CFLAGS   += -D_GNU_SOURCE -std=c99 \
     -Wall -Wextra -pedantic -Wshadow -Wunused -Wuninitialized \
     -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes \
-    -Wformat=2 -Wformat-overflow=2 -Wformat-truncation=2 -Wformat-signedness
+    -Wformat=2
+ifeq '' '$(IS_CLANG)'
+CFLAGS   += -Wformat-overflow=2 -Wformat-truncation=2 -Wformat-signedness \
+    -Wno-unknown-pragmas
+else
+CFLAGS   += -Wformat-non-iso -Wformat-pedantic -Wformat-type-confusion \
+    -Wno-missing-field-initializers
+endif
 CFLAGS   += $(foreach quirk,$(QUIRKS),-DUDOTOOL_$(quirk)_QUIRK)
 LDLIBS   += -ljim
 
