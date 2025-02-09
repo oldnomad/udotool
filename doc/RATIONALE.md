@@ -27,9 +27,10 @@ of complex input. On the other hand, `udev`/`libinput` is the most common
 environment in which this tool will be used, so I'll need to adapt to
 its behavior.
 
-`LIBINPUT` quirk seems like a good compromise: we sacrifice some flexibility
-by refusing to implement 16 digitizer tools, and for that we get correct
-behavior of `libinput` without writing a custom `udev` rule.
+Quirk flag `libinput` quirk seems like a good compromise: we sacrifice
+some flexibility by refusing to implement 16 digitizer tools, and for
+that we get correct behavior of `libinput` without writing a custom
+`udev` rule.
 
 ## Why Jim Tcl?
 

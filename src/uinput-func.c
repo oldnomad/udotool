@@ -29,6 +29,7 @@
  * - Settle time in seconds.
  * - Emulated device ID.
  * - Absolute axis definition (common for all absolute axes).
+ * - Compatibility flags.
  */
 static char UINPUT_DEVICE[PATH_MAX] = "/dev/uinput";
 static char UINPUT_DEVNAME[UINPUT_MAX_NAME_SIZE] = "udotool";
@@ -47,6 +48,7 @@ static struct input_absinfo UINPUT_AXIS_DEF = {
     .flat = 0,
     .resolution = 0, // unit/mm for main axes, unit/radian for ABS_R{X,Y,Z}
 };
+static unsigned UINPUT_FLAGS_MASK = UINPUT_DEFAULT_FLAGS;
 
 /**
  * Open callback and its data.
@@ -131,6 +133,33 @@ int uinput_set_option(int option, const char *value) {
             UINPUT_SETTLE_TIME = dval;
         }
         break;
+    case UINPUT_OPT_FLAGS:
+        {
+            const char *name, *sep;
+
+            for (name = value; name != NULL; name = sep) {
+                size_t nlen;
+                if ((sep = strchr(name, ',')) != NULL) {
+                    nlen = sep - name;
+                    ++sep;
+                } else
+                    nlen = strlen(name);
+                int neg = 0;
+                if (name[0] == '+' || name[0] == '-') {
+                    neg = (name[0] == '-');
+                    ++name;
+                    --nlen;
+                }
+                int mask = uinput_findn_flag("UINPUT", name, nlen);
+                if (mask < 0)
+                    return -1;
+                if (neg)
+                    UINPUT_FLAGS_MASK &= ~(unsigned)mask;
+                else
+                    UINPUT_FLAGS_MASK |= (unsigned)mask;
+            }
+        }
+        break;
     default:
         log_message(-1, "UINPUT: unrecognized option code %d", option);
         return -1;
@@ -174,6 +203,10 @@ int uinput_get_option(int option, char *buffer, size_t bufsize) {
         // Truncation cannot happen, since we limit settle time to 86400 seconds or less
         snprintf(intbuf, sizeof(intbuf), "%.6f", UINPUT_SETTLE_TIME);
 #pragma GCC diagnostic pop
+        pval = intbuf;
+        break;
+    case UINPUT_OPT_FLAGS:
+        snprintf(intbuf, sizeof(intbuf), "0x%04X", UINPUT_FLAGS_MASK);
         pval = intbuf;
         break;
     default:
@@ -283,10 +316,8 @@ static int uinput_setup(int fd) {
         return -1;
 
     for (int key = 0; key < KEY_MAX; key++) {
-#ifdef UDOTOOL_LIBINPUT_QUIRK
-        if (key >= BTN_TOOL_PEN && key <= BTN_TOOL_QUADTAP)
+        if ((UINPUT_FLAGS_MASK & UINPUT_FLAG_LIBINPUT) != 0 && key >= BTN_TOOL_PEN && key <= BTN_TOOL_QUADTAP)
             continue;
-#endif // UDOTOOL_LIBINPUT_QUIRK
         if (uinput_ioctl_int(fd, "UI_SET_KEYBIT", UI_SET_KEYBIT, key) < 0)
             return -1;
     }
@@ -432,6 +463,10 @@ int uinput_keyop(int key, int value, int sync) {
         return -1;
     if (key < 0)
         key = BTN_LEFT;
+    if ((UINPUT_FLAGS_MASK & UINPUT_FLAG_LIBINPUT) != 0 && key >= BTN_TOOL_PEN && key <= BTN_TOOL_QUADTAP) {
+        log_message(0, "UINPUT: Emulating key 0x%03X while libinput quirk is on, skipping", (unsigned)key);
+        return 0;
+    }
     log_message(2, "%sUINPUT: key%s 0x%03X%s",
             CFG_DRY_RUN_PREFIX,
             value ? "down" : "up", (unsigned)key, sync ? " (sync)" : "");

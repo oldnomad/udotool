@@ -28,6 +28,22 @@ static int uinput_find_id(const struct udotool_obj_id ids[], const char *name) {
 }
 
 /**
+ * Find an item value by name, where name is not null-terminated.
+ *
+ * @param ids   list of items.
+ * @param name  name to look for.
+ * @param nlen  name length.
+ * @return      item value.
+ */
+static int uinput_findn_id(const struct udotool_obj_id ids[], const char *name, size_t nlen) {
+    for (const struct udotool_obj_id *idptr = ids; idptr->name != NULL; idptr++) {
+        if (strncasecmp(name, idptr->name, nlen) == 0 && idptr->name[nlen] == '\0')
+            return idptr->value;
+    }
+    return -1;
+}
+
+/**
  * Convert axis name to axis code.
  *
  * Depending on `mask`, this function looks for absolute axes, relative
@@ -88,6 +104,31 @@ ON_UNKN_KEY:
     }
     return id;
 }
+
+/**
+ * Convert flag name to its value.
+ *
+ * @param prefix  prefix for error messages.
+ * @param name    flag name.
+ * @param nlen    flag name length.
+ * @return        flag value.
+ */
+int uinput_findn_flag(const char *prefix, const char *name, size_t nlen) {
+    int id;
+    if ((id = uinput_findn_id(UINPUT_FLAGS, name, nlen)) < 0) {
+        log_message(-1, "%s: unrecognized flag '%.*s'", prefix, (int)nlen, name);
+        return -1;
+    }
+    return id;
+}
+
+/**
+ * List of known flags.
+ */
+const struct udotool_obj_id UINPUT_FLAGS[] = {
+    { "libinput", UINPUT_FLAG_LIBINPUT },
+    { NULL }
+};
 
 /**
  * Map of high-resolution wheel axes.
@@ -491,7 +532,6 @@ const struct udotool_obj_id UINPUT_KEYS[] = {
     DEF_KEY(BTN_MODE),
     DEF_KEY(BTN_THUMBL),
     DEF_KEY(BTN_THUMBR),
-#ifndef UDOTOOL_LIBINPUT_QUIRK
     // Digitizer buttons
     DEF_KEY(BTN_TOOL_PEN),
     DEF_KEY(BTN_TOOL_RUBBER),
@@ -509,7 +549,6 @@ const struct udotool_obj_id UINPUT_KEYS[] = {
     DEF_KEY(BTN_TOOL_DOUBLETAP),
     DEF_KEY(BTN_TOOL_TRIPLETAP),
     DEF_KEY(BTN_TOOL_QUADTAP),
-#endif // !UDOTOOL_LIBINPUT_QUIRK
     // Wheel & gear buttons
     DEF_KEY(BTN_WHEEL),
     DEF_KEY(BTN_GEAR_DOWN),

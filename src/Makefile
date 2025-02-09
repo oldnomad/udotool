@@ -4,8 +4,6 @@ GIT       = /usr/bin/git
 ENVSUBST  = /usr/bin/envsubst
 XXD       = /usr/bin/xxd
 
-QUIRKS    = LIBINPUT
-
 IS_CLANG  = $(findstring clang,$(shell $(CC) --version))
 
 CFLAGS   += -D_GNU_SOURCE -std=c99 \
@@ -19,7 +17,6 @@ else
 CFLAGS   += -Wformat-non-iso -Wformat-pedantic -Wformat-type-confusion \
     -Wno-missing-field-initializers
 endif
-CFLAGS   += $(foreach quirk,$(QUIRKS),-DUDOTOOL_$(quirk)_QUIRK)
 LDLIBS   += -ljim
 
 SRC_FILES  = $(wildcard *.c)

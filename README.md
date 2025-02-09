@@ -55,15 +55,15 @@ Building Debian package:
 make package
 ```
 
-## Quirks
+## Emulation quirks
 
-Some sections of the code are guarded by conditional compilation controlled
-by preprocessor defines. Such sections may be switched on or off by passing
-to `make` a list of quirk names (in variable `QUIRKS`).
+Some details of input emulation are controlled by flags called "quirks".
+They can be switched on or off by specifying command line option `--quirk`,
+or by setting environment variable `UDOTOOL_QUIRKS`.
 
 Following quirks are defined at the moment:
 
-- `LIBINPUT` (on by default): for reasons related to how `libinput` guesses
+- `libinput` (on by default): for reasons related to how `libinput` guesses
   input device type, buttons with values `0x140` to `0x14f` (`BTN_TOOL_PEN`
   to `BTN_TOOL_QUADTAP`), which are used by tablets (digitizers) and
   touchscreens, are disabled. See [separate document](doc/QUIRK-LIBINPUT.md).

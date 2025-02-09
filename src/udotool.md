@@ -49,6 +49,10 @@ starting with two dashes ('-'). A summary of options is included below.
 **\-\-dev-id** _vendor-id_[**:**_product-id_[**:**_version_]]
 :   Use specified emulated device ID. Default is **0x0000:0x0000:0**.
 
+**\-\-quirk** [+|-]_name_,...
+:   Set on or off emulation quirk flags. Default is **+libinput**. See section
+ **QUIRK FLAGS** below for a list of known quirk flags.
+
 **-v**, **\-\-verbose**
 :   Print more debug messages. Adding multiple **-v** will increase the verbosity.
 
@@ -237,6 +241,15 @@ it as a number.
 If you have the device that you want to emulate, you can use **evtest**(1)
 to determine which keys it uses.
 
+# QUIRK FLAGS
+
+Following quirks are defined at the moment:
+
+- `libinput` (on by default): for reasons related to how `libinput` guesses
+  input device type, buttons with values `0x140` to `0x14f` (`BTN_TOOL_PEN`
+  to `BTN_TOOL_QUADTAP`), which are used by tablets (digitizers) and
+  touchscreens, are disabled.
+
 # ENVIRONMENT
 
 **UDOTOOL_SETTLE_TIME**
@@ -253,6 +266,10 @@ to determine which keys it uses.
 
 **UDOTOOL_DEVICE_ID**
 :   If set, this environment variable overrides default emulated device ID.
+ This value can be overridden by a command-line option.
+
+**UDOTOOL_QUIRKS**
+:   If set, this environment variable contains quirk flags to set on or off.
  This value can be overridden by a command-line option.
 
 # SEE ALSO

@@ -13,6 +13,16 @@ enum {
     UINPUT_OPT_DEVNAME,     ///< Emulated device name.
     UINPUT_OPT_DEVID,       ///< Emulated device ID.
     UINPUT_OPT_SETTLE,      ///< Device settle time.
+    UINPUT_OPT_FLAGS,       ///< Compatibility flags.
+};
+
+/**
+ * UINPUT flags.
+ */
+enum {
+    UINPUT_FLAG_LIBINPUT = 0x0001, ///< Libinput compatibility quirk.
+    // Special values
+    UINPUT_DEFAULT_FLAGS = UINPUT_FLAG_LIBINPUT,
 };
 
 /**
@@ -46,6 +56,7 @@ struct udotool_hires_axis {
  */
 typedef void (*udotool_open_callback_t)(const char *sysname, void *data);
 
+extern const struct udotool_obj_id UINPUT_FLAGS[];
 extern const struct udotool_obj_id UINPUT_REL_AXES[];
 extern const struct udotool_obj_id UINPUT_ABS_AXES[];
 extern const struct udotool_obj_id UINPUT_KEYS[];
@@ -58,6 +69,7 @@ void uinput_set_open_callback(udotool_open_callback_t callback, void *data);
 
 int uinput_find_key(const char *prefix, const char *key);
 int uinput_find_axis(const char *prefix, const char *name, unsigned mask, int *pflag);
+int uinput_findn_flag(const char *prefix, const char *name, size_t nlen);
 
 int uinput_open(void);
 void uinput_close(void);

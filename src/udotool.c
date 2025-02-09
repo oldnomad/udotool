@@ -48,6 +48,8 @@ static const char USAGE_NOTICE[] = "Usage: %s [<option>...] <subcommand>...\n\n"
                                    "        Use specified emulated device name.\n"
                                    "    --dev-id <vendor-id>:<product-id>[:<version>]\n"
                                    "        Use specified emulated device ID.\n"
+                                   "    --quirk [+|-]<name>,...\n"
+                                   "        Set or unset specified emulation quirks.\n"
                                    "    -v, --verbose\n"
                                    "        Increase command verbosity.\n"
                                    "        This option can be specified multiple times.\n"
@@ -70,6 +72,7 @@ static const struct option LONG_OPTION[] = {
     { "dev",         required_argument, NULL, UINPUT_OPT_OFFSET + UINPUT_OPT_DEVICE  },
     { "dev-name",    required_argument, NULL, UINPUT_OPT_OFFSET + UINPUT_OPT_DEVNAME },
     { "dev-id",      required_argument, NULL, UINPUT_OPT_OFFSET + UINPUT_OPT_DEVID   },
+    { "quirk",       required_argument, NULL, UINPUT_OPT_OFFSET + UINPUT_OPT_FLAGS   },
     { NULL }
 };
 
@@ -120,10 +123,11 @@ int main(int argc, char *const argv[]) {
     int opt, optidx, has_file = 0;
     const char *input_file = NULL;
 
-    load_preset(UINPUT_OPT_SETTLE, "UDOTOOL_SETTLE_TIME");
-    load_preset(UINPUT_OPT_DEVICE, "UDOTOOL_DEVICE_PATH");
+    load_preset(UINPUT_OPT_SETTLE,  "UDOTOOL_SETTLE_TIME");
+    load_preset(UINPUT_OPT_DEVICE,  "UDOTOOL_DEVICE_PATH");
     load_preset(UINPUT_OPT_DEVNAME, "UDOTOOL_DEVICE_NAME");
-    load_preset(UINPUT_OPT_DEVID, "UDOTOOL_DEVICE_ID");
+    load_preset(UINPUT_OPT_DEVID,   "UDOTOOL_DEVICE_ID");
+    load_preset(UINPUT_OPT_FLAGS,   "UDOTOOL_QUIRKS");
     while ((opt = getopt_long(argc, argv, SHORT_OPTION, LONG_OPTION, &optidx)) != -1) {
         if (opt >= UINPUT_OPT_OFFSET) {
             if (uinput_set_option(opt - UINPUT_OPT_OFFSET, optarg) < 0)
