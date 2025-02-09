@@ -1,6 +1,7 @@
 udotool (2.2) UNRELEASED; urgency=medium
 
   * Now compiles with clang.
+  * Option `--version` now also prints Jim Tcl version.
 
  -- Alec Kojaev <alec.kojaev@gmail.com>  Sun, 09 Feb 2025 03:06:04 +0300
 

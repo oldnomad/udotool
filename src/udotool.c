@@ -148,6 +148,7 @@ int main(int argc, char *const argv[]) {
             return EXIT_SUCCESS;
         case 'V':
             printf("%s\n", VERSION_STRING);
+            exec_print_version(EXECUTOR_NAME " version");
             return EXIT_SUCCESS;
         default: // '?'
             printf(USAGE_NOTICE, argv[0]);

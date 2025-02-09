@@ -16,7 +16,7 @@
 #include "uinput-func.h"
 
 static Jim_Interp *exec_init(void);
-static int         exec_deinit(Jim_Interp *interp, int err);
+static int         exec_deinit(Jim_Interp *interp, int err, const char *prefix);
 
 static int exec_open     (Jim_Interp *interp, int argc, Jim_Obj *const*argv);
 static int exec_input    (Jim_Interp *interp, int argc, Jim_Obj *const*argv);
@@ -67,11 +67,11 @@ int exec_args(int argc, const char *const*argv) {
         return -1;
     Jim_Obj *list = Jim_NewListObj(interp, NULL, 0);
     if (list == NULL)
-        return exec_deinit(interp, -1);
+        return exec_deinit(interp, JIM_ERR, NULL);
     for (int i = 0; i < argc; i++)
         Jim_ListAppendElement(interp, list, Jim_NewStringObj(interp, argv[i], -1));
     int ret = Jim_EvalObj(interp, list);
-    return exec_deinit(interp, ret);
+    return exec_deinit(interp, ret, NULL);
 }
 
 int exec_file(const char *filename) {
@@ -83,7 +83,15 @@ int exec_file(const char *filename) {
         ret = Jim_Eval(interp, "eval [info source [stdin read] stdin 1]");
     else
         ret = Jim_EvalFile(interp, filename);
-    return exec_deinit(interp, ret);
+    return exec_deinit(interp, ret, NULL);
+}
+
+void exec_print_version(const char *prefix) {
+    Jim_Interp *interp = exec_init();
+    if (interp == NULL)
+        return;
+    int ret = Jim_Eval(interp, "info version");
+    exec_deinit(interp, ret, prefix);
 }
 
 /**
@@ -138,7 +146,7 @@ static Jim_Interp *exec_init() {
     Jim_RegisterCoreCommands(interp);
     int ret;
     if ((ret = Jim_InitStaticExtensions(interp)) != JIM_OK) {
-        exec_deinit(interp, ret);
+        exec_deinit(interp, ret, NULL);
         return NULL;
     }
     for (const struct exec_cmd *cmd = COMMANDS; cmd->name != NULL; cmd++) {
@@ -146,12 +154,12 @@ static Jim_Interp *exec_init() {
             Jim_Obj *name = Jim_NewStringObj(interp, cmd->name, -1);
             Jim_Obj *old_name = Jim_NewStringObj(interp, cmd->old_name, -1);
             if ((ret = Jim_RenameCommand(interp, name, old_name)) != JIM_OK) {
-                exec_deinit(interp, ret);
+                exec_deinit(interp, ret, NULL);
                 return NULL;
             }
         }
         if ((ret = Jim_CreateCommand(interp, cmd->name, cmd->proc, NULL, NULL)) != JIM_OK) {
-            exec_deinit(interp, ret);
+            exec_deinit(interp, ret, NULL);
             return NULL;
         }
     }
@@ -160,12 +168,12 @@ static Jim_Interp *exec_init() {
         (ret = set_opt_var(interp, "::udotool::dev_id",      UINPUT_OPT_DEVID)) != JIM_OK ||
         (ret = set_opt_var(interp, "::udotool::settle_time", UINPUT_OPT_SETTLE)) != JIM_OK ||
         (ret = set_verbosity_var(interp)) != JIM_OK) {
-        exec_deinit(interp, ret);
+        exec_deinit(interp, ret, NULL);
         return NULL;
     }
     uinput_set_open_callback(open_callback, interp);
     if ((ret = Jim_EvalSource(interp, "exec-tcl.tcl", 1, PREEXEC_SCRIPT)) != JIM_OK) {
-        exec_deinit(interp, ret);
+        exec_deinit(interp, ret, NULL);
         return NULL;
     }
     return interp;
@@ -175,12 +183,15 @@ static Jim_Interp *exec_init() {
  * Print a (possibly complex) Tcl Object in a human-readable form.
  *
  * @param interp  interpreter.
+ * @param prefix  optional result prefix.
  * @param obj     object to print.
  */
-static void print_object(Jim_Interp *interp, Jim_Obj *obj) {
+static void print_object(Jim_Interp *interp, const char *prefix, Jim_Obj *obj) {
     if (obj == NULL)
         return;
     if (Jim_IsDict(obj)) {
+        if (prefix != NULL)
+            log_message(0, "%s::", prefix);
         int len = 0;
         Jim_Obj **table = Jim_DictPairs(interp, obj, &len);
         if (table != NULL && len > 0) {
@@ -193,6 +204,8 @@ static void print_object(Jim_Interp *interp, Jim_Obj *obj) {
         return;
     }
     if (Jim_IsList(obj)) {
+        if (prefix != NULL)
+            log_message(0, "%s::", prefix);
         int len = Jim_ListLength(interp, obj);
         for (int i = 0; i < len; i++) {
             Jim_Obj *elem = Jim_ListGetIndex(interp, obj, i);
@@ -203,7 +216,10 @@ static void print_object(Jim_Interp *interp, Jim_Obj *obj) {
     const char *text = Jim_GetString(obj, NULL);
     if (*text == '\0')
         return;
-    log_message(0, "%s", text);
+    if (prefix != NULL)
+        log_message(0, "%s: %s", prefix, text);
+    else
+        log_message(0, "%s", text);
 }
 
 /**
@@ -211,9 +227,10 @@ static void print_object(Jim_Interp *interp, Jim_Obj *obj) {
  *
  * @param interp  interpreter.
  * @param err     final error code.
+ * @param prefix  optional result prefix.
  * @return        exit code.
  */
-static int exec_deinit(Jim_Interp *interp, int err) {
+static int exec_deinit(Jim_Interp *interp, int err, const char *prefix) {
     uinput_set_open_callback(NULL, NULL);
     int ret = -1;
     if (err == JIM_ERR)
@@ -222,7 +239,7 @@ static int exec_deinit(Jim_Interp *interp, int err) {
     if (err == JIM_ERR)
         log_message(-1, "%s", Jim_GetString(result, NULL));
     else
-        print_object(interp, result);
+        print_object(interp, prefix, result);
     ret = Jim_GetExitCode(interp);
     Jim_FreeInterp(interp);
     return ret;
