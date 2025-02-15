@@ -4,6 +4,11 @@
 #
 set ::udotool::default_delay 0.05
 
+proc ::internal::sysfile {name} {{extlist {glob.tcl nshelper.tcl oo.tcl stdlib.tcl tclcompat.tcl tree.tcl}}} {
+    if {$name == [info script]} {return 1}
+    return [lsearch -bool $extlist $name]
+}
+
 proc ::internal::getopt {_argv opt {hasval 0} {defval "--"}} {
     upvar $_argv argv
     set idx [lsearch $argv $opt]
@@ -80,12 +85,10 @@ proc key {args} {
 }
 
 if { $::udotool::debug > 0 } {
-    set ::internal::system_files {glob.tcl nshelper.tcl oo.tcl stdlib.tcl tclcompat.tcl tree.tcl}
-    set ::internal::system_files [list [info script] {*}$::internal::system_files]
     xtrace [lambda {mode fname line result cmd arglist} {
         if { $mode != "cmd" } { return }
         set level 1
-        if { [lsearch -bool $::internal::system_files $fname] } {
+        if { [::internal::sysfile $fname] } {
             if { $::udotool::debug < 3 } { return }
             set level 3
         }
