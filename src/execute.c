@@ -36,7 +36,7 @@ static const struct exec_cmd {
     { "input",     exec_input,     NULL },
     { "timedloop", exec_timedloop, NULL },
     { "names",     exec_names,     NULL },
-    { "sleep",     exec_sleep,     "::internal::sleep" },
+    { "sleep",     exec_sleep,     ""   },
     { NULL }
 };
 
