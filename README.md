@@ -84,5 +84,4 @@ Following quirks are defined at the moment:
   by [Jordan Sissel](https://github.com/jordansissel).
 - This tool uses [Jim Tcl](http://jim.tcl.tk/), an opensource small-footprint
   implementation of the Tcl programming language, originally written by
-  [Salvatore antirez Sanfilippo](http://www.invece.org/) and currently
-  supported by [Steve Bennett](mailto:steveb@workware.net.au).
+  Salvatore "antirez" Sanfilippo and currently supported by Steve Bennett.
