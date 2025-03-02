@@ -1,10 +1,10 @@
-udotool (2.2) UNRELEASED; urgency=medium
+udotool (2.2) unstable; urgency=medium
 
   * Now compiles with clang.
   * Option `--version` now also prints Jim Tcl version.
   * NEW: Quirks can now be set/unset at runtime.
 
- -- Alec Kojaev <alec.kojaev@gmail.com>  Sun, 09 Feb 2025 03:06:04 +0300
+ -- Alec Kojaev <alec.kojaev@gmail.com>  Sun, 02 Mar 2025 16:11:21 +0300
 
 udotool (2.1) unstable; urgency=medium
 
