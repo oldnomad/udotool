@@ -81,7 +81,7 @@ proc key {args} {
     if { $rep_num == 0 } {
         set rep_num [expr { $rep_time <= 0 ? 1 : -1 }]
     }
-    open
+    udotool open
     timedloop $rep_time $rep_num {
         udotool input {*}$key_list
         sleep $rep_delay
