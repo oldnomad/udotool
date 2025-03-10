@@ -1,4 +1,4 @@
-udotool (2.3) UNRELEASED; urgency=medium
+udotool (2.3) unstable; urgency=medium
 
   * Low-level commands (`open` and Tcl-style `input`) are hidden under
     ensemble command `udotool`.
@@ -7,7 +7,7 @@ udotool (2.3) UNRELEASED; urgency=medium
   * New low-level command `udotool protocol`.
   * Remove variable `::udotool::sys_name`.
 
- -- Alec Kojaev <alec.kojaev@gmail.com>  Mon, 10 Mar 2025 22:27:50 +0300
+ -- Alec Kojaev <alec.kojaev@gmail.com>  Mon, 10 Mar 2025 23:13:57 +0300
 
 udotool (2.2) unstable; urgency=medium
 
