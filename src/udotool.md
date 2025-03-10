@@ -83,7 +83,8 @@ Documentation for Tcl language is available at <https://www.tcl-lang.org/>.
  an empty string, variable with this name will contain time
  elapsed since start of loop. If _varnum_ is specified and not
  an empty string, variable with this name will contain number
- of already executed iterations.
+ of already executed iterations. This command can be used only
+ in scripts.
 
 ## Input emulation commands
 
@@ -120,27 +121,28 @@ Documentation for Tcl language is available at <https://www.tcl-lang.org/>.
  **-r** is specified, axes **ABS_RX**, **ABS_RY**, and **ABS_RZ** are
  used instead. See also section **VALUE UNITS** below.
 
-## Low-level input emulation commands
-
-**open**
-:   Ensure that the input device is open and initialized.
- If this command was not specified, initialization happens
- before the first emulation command. Note that initialization
- takes some time (settle time).
-
 **input** {*axis***=***value* | **KEYDOWN=***key* | **KEYUP=***key* | **SYNC**}...
 :   Emulate a complex input message. This command allows
- you emulate a complex message that includes data for
- several axes and keys/buttons. This may be needed if you want to
- emulate, for example, some complex gamepad combo. See also sections
- **VALUE UNITS**, **AXIS NAMES** and **KEY NAMES** below.
+ you emulate a complex message that includes data for several axes and
+ keys/buttons. This may be needed if you want to emulate, for example,
+ some complex gamepad combo. See also sections **VALUE UNITS**,
+ **AXIS NAMES** and **KEY NAMES** below.
 
-**input** **{** *axis* *value* **}**...
+## Low-level commands
+
+**udotool open**
+:   Ensure that the input device is open and initialized.
+ If this command was not used, initialization happens before the first
+ emulation command. Note that initialization takes some time (settle time).
+
+**udotool close**
+:   Ensure that the input device is closed and destroyed.
+ If this command was not used, device is closed on exit.
+
+**udotool input** **{** *axis* *value* **}**...
 :   This is an alternative syntax for **input** command. It interprets
  arguments not as strings, but as Tcl lists, each containing an axis name
- and a value. This syntax can be intermixed with the string-argument syntax,
- i.e. you can mix Tcl lists and "="-separated strings. However, this syntax
- can be used only in scripts.
+ and a value. This command can be used only in scripts.
 
 ## Variables and environment
 
@@ -175,7 +177,7 @@ key -repeat 10 BTN_LEFT
 ```
 
 **NOTE**: Since some systems don't properly split options in shebang
-line, to combine several options you can use only short options:
+line, to combine several options you can only use short options:
 **#!/usr/bin/udotool -vi** will work, but **#!/usr/bin/udotool -v -i**
 probably won't.
 

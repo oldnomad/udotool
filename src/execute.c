@@ -18,8 +18,7 @@
 static Jim_Interp *exec_init(void);
 static int         exec_deinit(Jim_Interp *interp, int err, const char *prefix);
 
-static int exec_open     (Jim_Interp *interp, int argc, Jim_Obj *const*argv);
-static int exec_input    (Jim_Interp *interp, int argc, Jim_Obj *const*argv);
+static int exec_udotool  (Jim_Interp *interp, int argc, Jim_Obj *const*argv);
 static int exec_timedloop(Jim_Interp *interp, int argc, Jim_Obj *const*argv);
 static int exec_names    (Jim_Interp *interp, int argc, Jim_Obj *const*argv);
 static int exec_sleep    (Jim_Interp *interp, int argc, Jim_Obj *const*argv);
@@ -32,8 +31,7 @@ static const struct exec_cmd {
     Jim_CmdProc *proc;      ///< Command procedure.
     const char  *old_name;  ///< Old command name, if necessary.
 } COMMANDS[] = {
-    { "open",      exec_open,      NULL },
-    { "input",     exec_input,     NULL },
+    { "udotool",   exec_udotool,   NULL },
     { "timedloop", exec_timedloop, NULL },
     { "names",     exec_names,     NULL },
     { "sleep",     exec_sleep,     ""   },
@@ -308,119 +306,128 @@ static int get_time(Jim_Interp *interp, struct timeval *tv) {
 }
 
 /**
- * Tcl command: open
+ * Emit single axis of an input.
+ *
+ * @param interp     interpreter.
+ * @param axis_name  axis name.
+ * @param value      axis value, or null.
+ * @return           error code.
  */
-static int exec_open(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
-    if (argc != 1) {
-        Jim_WrongNumArgs(interp, 1, argv, "");
+static int emit_axis(Jim_Interp *interp, const char *axis_name, Jim_Obj *value) {
+    if (strcasecmp(AXIS_SYNC, axis_name) == 0) {
+        if (uinput_sync() < 0) {
+            Jim_SetResultFormatted(interp, "device sync error");
+            return JIM_ERR;
+        }
+        return JIM_OK;
+    }
+    if (value == NULL) {
+        Jim_SetResultFormatted(interp, "missing value for axis \"%s\"", axis_name);
         return JIM_ERR;
     }
-    if (uinput_open() != 0) {
-        Jim_SetResultFormatted(interp, "device setup error");
+    if (strcasecmp(AXIS_KEYDOWN, axis_name) == 0) {
+        int key;
+        if ((key = uinput_find_key("input", Jim_String(value))) < 0) {
+            Jim_SetResultFormatted(interp, "unknown key name \"%#s\"", value);
+            return JIM_ERR;
+        }
+        if (uinput_keyop(key, 1, 0) < 0) {
+            Jim_SetResultFormatted(interp, "device event error");
+            return JIM_ERR;
+        }
+        return JIM_OK;
+    }
+    if (strcasecmp(AXIS_KEYUP, axis_name) == 0) {
+        int key;
+        if ((key = uinput_find_key("input", Jim_String(value))) < 0) {
+            Jim_SetResultFormatted(interp, "unknown key name \"%#s\"", value);
+            return JIM_ERR;
+        }
+        if (uinput_keyop(key, 0, 0) < 0) {
+            Jim_SetResultFormatted(interp, "device event error");
+            return JIM_ERR;
+        }
+        return JIM_OK;
+    }
+    int axis_code, abs_flag = 0;
+    if ((axis_code = uinput_find_axis("input", axis_name, UDOTOOL_AXIS_BOTH, &abs_flag)) < 0) {
+        Jim_SetResultFormatted(interp, "unknown axis name \"%s\"", axis_name);
         return JIM_ERR;
+    }
+    double dval = 0;
+    if (abs_flag) {
+        if (parse_abs_value(interp, value, &dval) < 0)
+            return JIM_ERR;
+        if (uinput_absop(axis_code, dval, 0) < 0) {
+            Jim_SetResultFormatted(interp, "device event error");
+            return JIM_ERR;
+        }
+    } else {
+        if (parse_rel_value(interp, value, &dval) < 0)
+            return JIM_ERR;
+        if (uinput_relop(axis_code, dval, 0) < 0) {
+            Jim_SetResultFormatted(interp, "device event error");
+            return JIM_ERR;
+        }
     }
     return JIM_OK;
 }
 
 /**
- * Tcl command: input
+ * Tcl command: udotool (ensemble)
  */
-static int exec_input(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
-    const char *cmd = Jim_String(argv[0]);
-    for (int n = 1; n < argc; n++) {
-        int llen = Jim_ListLength(interp, argv[n]);
-        if (llen == 0 || llen > 2) {
-            Jim_SetResultFormatted(interp, "incorrect list length in \"%#s\"", argv[n]);
-            return JIM_ERR;
-        }
-        int do_split = 0;
-        Jim_Obj *axis = NULL, *value = NULL;
-        if (llen == 1) {
-            const char *arg = Jim_String(argv[n]);
-            const char *sep = strchr(arg, '=');
-            if (sep == NULL) {
-                axis = argv[n];
-                value = NULL;
-            } else {
-                do_split = 1;
-                axis = Jim_NewStringObj(interp, arg, sep - arg);
-                value = Jim_NewStringObj(interp, sep + 1, -1);
-            }
-        } else {
-            axis = Jim_ListGetIndex(interp, argv[n], 0);
-            value = Jim_ListGetIndex(interp, argv[n], 1);
-        }
+static int exec_udotool(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
+    static const char *const SUBCOMMANDS[] = {
+        "open", "close", "input",
+        NULL
+    };
+    enum {
+        // NOTE: Order should be the same as in `SUBCOMMANDS` above!
+        SUBCMD_OPEN = 0, SUBCMD_CLOSE, SUBCMD_INPUT,
+    };
 
-        const char *axis_str = Jim_String(axis);
-        if (strcasecmp(AXIS_SYNC, axis_str) == 0) {
-            if (uinput_sync() < 0) {
-                Jim_SetResultFormatted(interp, "device sync error");
-                goto ON_ERROR;
-            }
-            goto ON_CONTINUE;
-        }
-        if (value == NULL) {
-            Jim_SetResultFormatted(interp, "missing separator in \"%#s\"", argv[n]);
-            goto ON_ERROR;
-        }
-        if (strcasecmp(AXIS_KEYDOWN, axis_str) == 0) {
-            int key;
-            if ((key = uinput_find_key(cmd, Jim_String(value))) < 0) {
-                Jim_SetResultFormatted(interp, "unknown key name in \"%#s\"", argv[n]);
-                goto ON_ERROR;
-            }
-            if (uinput_keyop(key, 1, 0) < 0) {
-                Jim_SetResultFormatted(interp, "device event error");
-                goto ON_ERROR;
-            }
-            goto ON_CONTINUE;
-        }
-        if (strcasecmp(AXIS_KEYUP, axis_str) == 0) {
-            int key;
-            if ((key = uinput_find_key(cmd, Jim_String(value))) < 0) {
-                Jim_SetResultFormatted(interp, "unknown key name in \"%#s\"", argv[n]);
-                goto ON_ERROR;
-            }
-            if (uinput_keyop(key, 0, 0) < 0) {
-                Jim_SetResultFormatted(interp, "device event error");
-                goto ON_ERROR;
-            }
-            goto ON_CONTINUE;
-        }
-        int axis_code, abs_flag = 0;
-        if ((axis_code = uinput_find_axis(cmd, axis_str, UDOTOOL_AXIS_BOTH, &abs_flag)) < 0) {
-ON_ERROR:
-            if (do_split) {
-                Jim_FreeObj(interp, axis);
-                Jim_FreeObj(interp, value);
-            }
+    if (argc < 2) {
+        Jim_WrongNumArgs(interp, 1, argv, "subcommand ?args ...?");
+        return JIM_ERR;
+    }
+    int cmd = -1;
+    if (Jim_GetEnum(interp, argv[1], SUBCOMMANDS, &cmd, "subcommand", JIM_ERRMSG|JIM_ENUM_ABBREV) != JIM_OK)
+        return Jim_CheckShowCommands(interp, argv[1], SUBCOMMANDS);
+    switch (cmd) {
+    case SUBCMD_OPEN: // open
+        if (argc != 2) {
+            Jim_WrongNumArgs(interp, 2, argv, "");
             return JIM_ERR;
         }
-        double dval = 0;
-        if (abs_flag) {
-            if (parse_abs_value(interp, value, &dval) < 0)
-                goto ON_ERROR;
-            if (uinput_absop(axis_code, dval, 0) < 0) {
-                Jim_SetResultFormatted(interp, "device event error");
-                goto ON_ERROR;
-            }
-        } else {
-            if (parse_rel_value(interp, value, &dval) < 0)
-                goto ON_ERROR;
-            if (uinput_relop(axis_code, dval, 0) < 0) {
-                Jim_SetResultFormatted(interp, "device event error");
-                goto ON_ERROR;
-            }
+        if (uinput_open() != 0) {
+            Jim_SetResultFormatted(interp, "device setup error");
+            return JIM_ERR;
         }
-ON_CONTINUE:
-        if (do_split) {
-            Jim_FreeObj(interp, axis);
-            Jim_FreeObj(interp, value);
+        break;
+    case SUBCMD_CLOSE: // close
+        if (argc != 2) {
+            Jim_WrongNumArgs(interp, 2, argv, "");
+            return JIM_ERR;
         }
-    }
-    if (uinput_sync() < 0) {
-        Jim_SetResultFormatted(interp, "device sync error");
-        return JIM_ERR;
+        uinput_close();
+        break;
+    case SUBCMD_INPUT: // input (low-level)
+        for (int n = 2; n < argc; n++) {
+            int llen = Jim_ListLength(interp, argv[n]);
+            if (llen == 0 || llen > 2) {
+                Jim_SetResultFormatted(interp, "incorrect list length in \"%#s\"", argv[n]);
+                return JIM_ERR;
+            }
+            Jim_Obj *axis = Jim_ListGetIndex(interp, argv[n], 0);
+            Jim_Obj *value = Jim_ListGetIndex(interp, argv[n], 1);
+            if (emit_axis(interp, Jim_String(axis), value) != JIM_OK)
+                return JIM_ERR;
+        }
+        if (uinput_sync() < 0) {
+            Jim_SetResultFormatted(interp, "device sync error");
+            return JIM_ERR;
+        }
+        break;
     }
     return JIM_OK;
 }

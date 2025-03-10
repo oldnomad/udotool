@@ -1,5 +1,5 @@
 #!./udotool -i
-open
+udotool open
 puts "Environment:"
 foreach key [array names env] { puts "- $key=$env($key)" }
 puts ""

@@ -24,12 +24,16 @@ proc ::internal::getopt {_argv opt {hasval 0} {defval "--"}} {
     return $val
 }
 
+proc input {args} {
+    udotool input {*}[lmap arg $args { split $arg {=} }]
+}
+
 proc keydown {args} {
-    eval input {*}[lmap key $args { list [list KEYDOWN $key] SYNC }]
+    eval udotool input {*}[lmap key $args { list [list KEYDOWN $key] SYNC }]
 }
 
 proc keyup {args} {
-    eval input {*}[lmap key [lreverse $args] { list [list KEYUP $key] SYNC }]
+    eval udotool input {*}[lmap key [lreverse $args] { list [list KEYUP $key] SYNC }]
 }
 
 proc wheel {args} {
@@ -38,7 +42,7 @@ proc wheel {args} {
     if { [llength $args] != 1 } {
         error "wrong # of arguments: should be \"wheel ?-h? delta\"" [info stacktrace]
     }
-    input [list $axis $args]
+    udotool input [list $axis $args]
 }
 
 proc move {args} {
@@ -48,7 +52,7 @@ proc move {args} {
     if { $argn < 1 || $argn > 3 } {
         error "wrong # of arguments: should be \"move ?-r? delta_x ?delta_y? ?delta_z?\"" [info stacktrace]
     }
-    input {*}[lmap val $args axis {X Y Z} {
+    udotool input {*}[lmap val $args axis {X Y Z} {
         if { "$val" == "" } { break }
         list "$prefix$axis" $val
     }]
@@ -61,7 +65,7 @@ proc position {args} {
     if { $argn < 1 || $argn > 3 } {
         error "wrong # of arguments: should be \"position ?-r? pos_x ?pos_y? ?pos_z?\"" [info stacktrace]
     }
-    input {*}[lmap val $args axis {X Y Z} {
+    udotool input {*}[lmap val $args axis {X Y Z} {
         if { "$val" == "" } { break }
         list "$prefix$axis" $val
     }]
@@ -79,7 +83,7 @@ proc key {args} {
     }
     open
     timedloop $rep_time $rep_num {
-        input {*}$key_list
+        udotool input {*}$key_list
         sleep $rep_delay
     }
 }

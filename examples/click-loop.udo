@@ -1,5 +1,5 @@
 #!./udotool -i
-open
+udotool open
 sleep 5
 # First we set position to the center of the screen
 position 50 50
