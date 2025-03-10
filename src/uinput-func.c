@@ -51,15 +51,15 @@ static struct input_absinfo UINPUT_AXIS_DEF = {
 static unsigned UINPUT_FLAGS_MASK = UINPUT_DEFAULT_FLAGS;
 
 /**
- * Open callback and its data.
- */
-static udotool_open_callback_t UINPUT_OPEN_CBK = NULL;
-static void *UINPUT_OPEN_CBK_DATA = NULL;
-
-/**
  * UINPUT device handle, or `-1` if not open yet.
  */
 static int UINPUT_FD = -1;
+
+/**
+ * UINPUT device name and protocol version.
+ */
+static char UINPUT_SYSNAME[PATH_MAX] = "";
+static unsigned UINPUT_PROTOCOL_VERSION = 0;
 
 /**
  * Set UINPUT option.
@@ -222,14 +222,21 @@ int uinput_get_option(int option, char *buffer, size_t bufsize) {
 }
 
 /**
- * Set UINPUT open callback.
+ * Get device sysname, if open.
  *
- * @param callback  callback function.
- * @param data      callback data.
+ * @return device sysname.
  */
-void uinput_set_open_callback(udotool_open_callback_t callback, void *data) {
-    UINPUT_OPEN_CBK = callback;
-    UINPUT_OPEN_CBK_DATA = data;
+const char *uinput_get_sysname() {
+    return UINPUT_SYSNAME;
+}
+
+/**
+ * Get protocol version, if open.
+ *
+ * @return protocol version.
+ */
+unsigned uinput_get_version(void) {
+    return UINPUT_PROTOCOL_VERSION;
 }
 
 /**
@@ -359,7 +366,7 @@ int uinput_open(void) {
         return 0;
     log_message(2, "%sUINPUT: open", CFG_DRY_RUN_PREFIX);
     if (CFG_DRY_RUN) {
-        UINPUT_FD  = +1000;
+        UINPUT_FD = +1000;
         return 0;
     }
 
@@ -374,15 +381,10 @@ int uinput_open(void) {
         return -1;
     }
 
-    char sysname[PATH_MAX];
-    if (uinput_ioctl_ptr(UINPUT_FD, "UI_GET_SYSNAME", UI_GET_SYSNAME(sizeof(sysname)), sysname) == 0) {
-        log_message(1, "UINPUT: opened device %s", sysname);
-        if (UINPUT_OPEN_CBK != NULL)
-            (*UINPUT_OPEN_CBK)(sysname, UINPUT_OPEN_CBK_DATA);
-    }
-    unsigned version = 0;
-    if (uinput_ioctl_ptr(UINPUT_FD, "UI_GET_VERSION", UI_GET_VERSION, &version) == 0)
-        log_message(1, "UINPUT: protocol version 0x%04X", version);
+    if (uinput_ioctl_ptr(UINPUT_FD, "UI_GET_SYSNAME", UI_GET_SYSNAME(sizeof(UINPUT_SYSNAME)), UINPUT_SYSNAME) == 0)
+        log_message(1, "UINPUT: opened device %s", UINPUT_SYSNAME);
+    if (uinput_ioctl_ptr(UINPUT_FD, "UI_GET_VERSION", UI_GET_VERSION, &UINPUT_PROTOCOL_VERSION) == 0)
+        log_message(1, "UINPUT: protocol version 0x%04X", UINPUT_PROTOCOL_VERSION);
 
     log_message(2, "UINPUT: waiting to settle");
     struct timespec tval;
@@ -403,6 +405,8 @@ void uinput_close() {
     if (UINPUT_FD < 0)
         return;
     if (!CFG_DRY_RUN) {
+        UINPUT_SYSNAME[0] = '\0';
+        UINPUT_PROTOCOL_VERSION = 0;
         uinput_ioctl_int(UINPUT_FD, "UI_DEV_DESTROY", UI_DEV_DESTROY, 0);
         close(UINPUT_FD);
     }

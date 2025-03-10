@@ -139,6 +139,14 @@ Documentation for Tcl language is available at <https://www.tcl-lang.org/>.
 :   Ensure that the input device is closed and destroyed.
  If this command was not used, device is closed on exit.
 
+**udotool sysname**
+:   Return virtual device directory name under **/sys/devices/virtual/input/**.
+ It becomes available when emulation device is initialized.
+
+**udotool protocol**
+:   Return UINPUT protocol version number.
+ It becomes available when emulation device is initialized.
+
 **udotool input** **{** *axis* *value* **}**...
 :   This is an alternative syntax for **input** command. It interprets
  arguments not as strings, but as Tcl lists, each containing an axis name
@@ -160,9 +168,6 @@ modifying these variables in the script has no effect on execution.
 - **::udotool::default_delay** contains default delay between key/button
   events in command **key**. Modifying this variable affects all following
   commands.
-- **::udotool::sys_name** contains virtual device directory name under
-  **/sys/devices/virtual/input/**. It becomes available when
-  emulation device is initialized.
 
 # SCRIPTS
 

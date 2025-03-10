@@ -122,17 +122,6 @@ static int set_verbosity_var(Jim_Interp *interp) {
 }
 
 /**
- * Device open callback.
- *
- * @param sysname  device directory name.
- * @param data     interpreter.
- */
-static void open_callback(const char *sysname, void *data) {
-    Jim_Interp *interp = data;
-    Jim_SetVariableStrWithStr(interp, "::udotool::sys_name", sysname);
-}
-
-/**
  * Initialize Tcl interpreter.
  *
  * @return new Tcl interpreter.
@@ -169,7 +158,6 @@ static Jim_Interp *exec_init() {
         exec_deinit(interp, ret, NULL);
         return NULL;
     }
-    uinput_set_open_callback(open_callback, interp);
     if ((ret = Jim_EvalSource(interp, "exec-tcl.tcl", 1, PREEXEC_SCRIPT)) != JIM_OK) {
         exec_deinit(interp, ret, NULL);
         return NULL;
@@ -229,7 +217,6 @@ static void print_object(Jim_Interp *interp, const char *prefix, Jim_Obj *obj) {
  * @return        exit code.
  */
 static int exec_deinit(Jim_Interp *interp, int err, const char *prefix) {
-    uinput_set_open_callback(NULL, NULL);
     int ret = -1;
     if (err == JIM_ERR)
         Jim_MakeErrorMessage(interp);
@@ -379,11 +366,13 @@ static int emit_axis(Jim_Interp *interp, const char *axis_name, Jim_Obj *value) 
 static int exec_udotool(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
     static const char *const SUBCOMMANDS[] = {
         "open", "close", "input",
+        "sysname", "protocol",
         NULL
     };
     enum {
         // NOTE: Order should be the same as in `SUBCOMMANDS` above!
         SUBCMD_OPEN = 0, SUBCMD_CLOSE, SUBCMD_INPUT,
+        SUBCMD_SYSNAME, SUBCMD_PROTOCOL,
     };
 
     if (argc < 2) {
@@ -427,6 +416,20 @@ static int exec_udotool(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
             Jim_SetResultFormatted(interp, "device sync error");
             return JIM_ERR;
         }
+        break;
+    case SUBCMD_SYSNAME: // sysname
+        if (argc != 2) {
+            Jim_WrongNumArgs(interp, 2, argv, "");
+            return JIM_ERR;
+        }
+        Jim_SetResultString(interp, uinput_get_sysname(), -1);
+        break;
+    case SUBCMD_PROTOCOL: // protocol
+        if (argc != 2) {
+            Jim_WrongNumArgs(interp, 2, argv, "");
+            return JIM_ERR;
+        }
+        Jim_SetResultInt(interp, uinput_get_version());
         break;
     }
     return JIM_OK;
