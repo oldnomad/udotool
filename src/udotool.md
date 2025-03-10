@@ -139,6 +139,11 @@ Documentation for Tcl language is available at <https://www.tcl-lang.org/>.
 :   Ensure that the input device is closed and destroyed.
  If this command was not used, device is closed on exit.
 
+**udotool option** *optionName* [*value*]
+:   Get or set emulation option value. Option names are: **device**,
+ **dev_name**, **dev_id**, **settle_time**, and **quirks**. See command
+ line options for their meaning.
+
 **udotool sysname**
 :   Return virtual device directory name under **/sys/devices/virtual/input/**.
  It becomes available when emulation device is initialized.
@@ -154,17 +159,13 @@ Documentation for Tcl language is available at <https://www.tcl-lang.org/>.
 
 ## Variables and environment
 
-`udotool` sets several global Tcl variables. Unless stated otherwise,
-modifying these variables in the script has no effect on execution.
+`udotool` sets several global Tcl variables.
 
 - **::udotool::debug** contains debug verbosity level. Modifying this
   variable may affect tracing Tcl commands, but has no effect on other
   debug messages.
-- **::udotool::dry_run** is non-zero on dry run.
-- **::udotool::device** contains UINPUT device path.
-- **::udotool::dev_name** contains emulated device name.
-- **::udotool::dev_id** contains emulated device ID.
-- **::udotool::settle_time** contains device settle time (in seconds).
+- **::udotool::dry_run** is non-zero on dry run. Modifying this variable
+  has no effect.
 - **::udotool::default_delay** contains default delay between key/button
   events in command **key**. Modifying this variable affects all following
   commands.

@@ -93,23 +93,11 @@ void exec_print_version(const char *prefix) {
 }
 
 /**
- * Set Tcl variable from UINPUT option.
+ * Set Tcl variables reflecting run mode.
  *
  * @param interp  interpreter.
- * @param name    variable name.
- * @param opt     option code.
- * @return        error code.
  */
-static int set_opt_var(Jim_Interp *interp, const char *name, int opt) {
-    char buffer[PATH_MAX];
-    if (uinput_get_option(opt, buffer, sizeof(buffer)) < 0) {
-        Jim_SetResultFormatted(interp, "error setting variable \"%s\" from option %d", name, opt);
-        return JIM_ERR;
-    }
-    return Jim_SetVariableStrWithStr(interp, name, buffer);
-}
-
-static int set_verbosity_var(Jim_Interp *interp) {
+static int set_runtime_vars(Jim_Interp *interp) {
     char buffer[32];
     int ret;
     snprintf(buffer, sizeof(buffer), "%d", CFG_VERBOSITY);
@@ -150,11 +138,7 @@ static Jim_Interp *exec_init() {
             return NULL;
         }
     }
-    if ((ret = set_opt_var(interp, "::udotool::device",      UINPUT_OPT_DEVICE)) != JIM_OK ||
-        (ret = set_opt_var(interp, "::udotool::dev_name",    UINPUT_OPT_DEVNAME)) != JIM_OK ||
-        (ret = set_opt_var(interp, "::udotool::dev_id",      UINPUT_OPT_DEVID)) != JIM_OK ||
-        (ret = set_opt_var(interp, "::udotool::settle_time", UINPUT_OPT_SETTLE)) != JIM_OK ||
-        (ret = set_verbosity_var(interp)) != JIM_OK) {
+    if ((ret = set_runtime_vars(interp)) != JIM_OK) {
         exec_deinit(interp, ret, NULL);
         return NULL;
     }
@@ -366,13 +350,26 @@ static int emit_axis(Jim_Interp *interp, const char *axis_name, Jim_Obj *value) 
 static int exec_udotool(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
     static const char *const SUBCOMMANDS[] = {
         "open", "close", "input",
-        "sysname", "protocol",
+        "option", "sysname", "protocol",
         NULL
     };
     enum {
         // NOTE: Order should be the same as in `SUBCOMMANDS` above!
         SUBCMD_OPEN = 0, SUBCMD_CLOSE, SUBCMD_INPUT,
-        SUBCMD_SYSNAME, SUBCMD_PROTOCOL,
+        SUBCMD_OPTION, SUBCMD_SYSNAME, SUBCMD_PROTOCOL,
+    };
+    static const char *const OPTIONS[] = {
+        "device", "dev_name", "dev_id",
+        "settle_time", "quirks",
+        NULL
+    };
+    static const int OPTION_CODES[] = {
+        // NOTE: Order should be the same as in `OPTIONS` above!
+        UINPUT_OPT_DEVICE,
+        UINPUT_OPT_DEVNAME,
+        UINPUT_OPT_DEVID,
+        UINPUT_OPT_SETTLE,
+        UINPUT_OPT_FLAGS,
     };
 
     if (argc < 2) {
@@ -415,6 +412,35 @@ static int exec_udotool(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
         if (uinput_sync() < 0) {
             Jim_SetResultFormatted(interp, "device sync error");
             return JIM_ERR;
+        }
+        break;
+    case SUBCMD_OPTION: // option (both get & set)
+        if (argc < 3 || argc > 4) {
+            Jim_WrongNumArgs(interp, 2, argv, "optName ?value?");
+            return JIM_ERR;
+        }
+        {
+            int opt = -1;
+            if (Jim_GetEnum(interp, argv[2], OPTIONS, &opt, "optName", JIM_ERRMSG) != JIM_OK)
+                return Jim_CheckShowCommands(interp, argv[2], OPTIONS);
+            if (opt < 0 || opt >= (int)(sizeof(OPTION_CODES)/sizeof(OPTION_CODES[0]))) {
+                Jim_SetResultFormatted(interp, "unknown option number %d", opt);
+                return JIM_ERR;
+            }
+            opt = OPTION_CODES[opt];
+            if (argc == 3) {
+                char buffer[PATH_MAX];
+                if (uinput_get_option(opt, buffer, sizeof(buffer)) < 0) {
+                    Jim_SetResultFormatted(interp, "error getting option \"%#s\"", argv[2]);
+                    return JIM_ERR;
+                }
+                Jim_SetResultString(interp, buffer, -1);
+            } else {
+                if (uinput_set_option(opt, Jim_String(argv[3])) < 0) {
+                    Jim_SetResultFormatted(interp, "error setting option \"%#s\" to value \"%#s\"", argv[2], argv[3]);
+                    return JIM_ERR;
+                }
+            }
         }
         break;
     case SUBCMD_SYSNAME: // sysname

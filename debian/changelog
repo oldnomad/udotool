@@ -1,3 +1,10 @@
+udotool (2.4) UNRELEASED; urgency=medium
+
+  * New low-level command `udotool option`.
+  * Removed most of Tcl variables in favor of `udotool option`.
+
+ -- Alec Kojaev <alec.kojaev@gmail.com>  Tue, 11 Mar 2025 02:03:30 +0300
+
 udotool (2.3) unstable; urgency=medium
 
   * Low-level commands (`open` and Tcl-style `input`) are hidden under
