@@ -360,7 +360,7 @@ static int exec_udotool(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
     };
     static const char *const OPTIONS[] = {
         "device", "dev_name", "dev_id",
-        "settle_time", "quirks",
+        "delay_time", "settle_time", "quirks",
         NULL
     };
     static const int OPTION_CODES[] = {
@@ -368,6 +368,7 @@ static int exec_udotool(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
         UINPUT_OPT_DEVICE,
         UINPUT_OPT_DEVNAME,
         UINPUT_OPT_DEVID,
+        UINPUT_OPT_DELAY,
         UINPUT_OPT_SETTLE,
         UINPUT_OPT_FLAGS,
     };

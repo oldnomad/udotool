@@ -40,6 +40,8 @@ static const char USAGE_NOTICE[] = "Usage: %s [<option>...] <subcommand>...\n\n"
                                    "        Use file name '-' for standard input (default).\n"
                                    "    -n, --dry-run\n"
                                    "        Instead of executing provided commands, print what will be done.\n"
+                                   "    --delay-time <time>\n"
+                                   "        Use specified default key delay time (default is " EQUOTE(DEFAULT_DELAY_TIME) ")\n"
                                    "    --settle-time <time>\n"
                                    "        Use specified settle time (default is " EQUOTE(DEFAULT_SETTLE_TIME) ")\n"
                                    "    --dev <dev-path>\n"
@@ -68,6 +70,7 @@ static const struct option LONG_OPTION[] = {
     { "verbose",     no_argument,       NULL, 'v' },
     { "help",        no_argument,       NULL, 'h' },
     { "version",     no_argument,       NULL, 'V' },
+    { "delay-time",  required_argument, NULL, UINPUT_OPT_OFFSET + UINPUT_OPT_DELAY   },
     { "settle-time", required_argument, NULL, UINPUT_OPT_OFFSET + UINPUT_OPT_SETTLE  },
     { "dev",         required_argument, NULL, UINPUT_OPT_OFFSET + UINPUT_OPT_DEVICE  },
     { "dev-name",    required_argument, NULL, UINPUT_OPT_OFFSET + UINPUT_OPT_DEVNAME },

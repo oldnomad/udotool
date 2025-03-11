@@ -9,6 +9,7 @@
 #define MAX_SLEEP_SEC         86400 ///< Maximum delay, in seconds.
 #define MIN_SLEEP_SEC         0.001 ///< Minimum delay, in seconds.
 #define DEFAULT_SETTLE_TIME   0.500 ///< Default settle time after setup, in seconds.
+#define DEFAULT_DELAY_TIME    0.050 ///< Default key delay time, in seconds.
 
 #define UINPUT_ABS_MAXVALUE 1000000 ///< Maximum absolute axis position.
 

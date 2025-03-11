@@ -13,6 +13,7 @@ enum {
     UINPUT_OPT_DEVNAME,     ///< Emulated device name.
     UINPUT_OPT_DEVID,       ///< Emulated device ID.
     UINPUT_OPT_SETTLE,      ///< Device settle time.
+    UINPUT_OPT_DELAY,       ///< Default key delay time.
     UINPUT_OPT_FLAGS,       ///< Compatibility flags.
 };
 

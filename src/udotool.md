@@ -37,6 +37,9 @@ starting with two dashes ('-'). A summary of options is included below.
 **-n**, **\-\-dry-run**
 :   Do not execute input emulation commands. Generic commands will be executed anyway.
 
+**\-\-delay-time** _time_
+:   Use specified default delay time (default is 0.05 seconds). See command **key**.
+
 **\-\-settle-time** _time_
 :   Use specified settle time (default is 0.5 seconds).
 
@@ -141,8 +144,8 @@ Documentation for Tcl language is available at <https://www.tcl-lang.org/>.
 
 **udotool option** *optionName* [*value*]
 :   Get or set emulation option value. Option names are: **device**,
- **dev_name**, **dev_id**, **settle_time**, and **quirks**. See command
- line options for their meaning.
+ **dev_name**, **dev_id**, **delay_time**, **settle_time**, and **quirks**.
+ See command line options for their meaning.
 
 **udotool sysname**
 :   Return virtual device directory name under **/sys/devices/virtual/input/**.
@@ -157,7 +160,7 @@ Documentation for Tcl language is available at <https://www.tcl-lang.org/>.
  arguments not as strings, but as Tcl lists, each containing an axis name
  and a value. This command can be used only in scripts.
 
-## Variables and environment
+## Variables
 
 `udotool` sets several global Tcl variables.
 
@@ -166,9 +169,6 @@ Documentation for Tcl language is available at <https://www.tcl-lang.org/>.
   debug messages.
 - **::udotool::dry_run** is non-zero on dry run. Modifying this variable
   has no effect.
-- **::udotool::default_delay** contains default delay between key/button
-  events in command **key**. Modifying this variable affects all following
-  commands.
 
 # SCRIPTS
 

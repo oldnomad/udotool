@@ -26,6 +26,7 @@
  * This group contains:
  * - UINPUT device path.
  * - Emulated device name.
+ * - Default key delay in seconds.
  * - Settle time in seconds.
  * - Emulated device ID.
  * - Absolute axis definition (common for all absolute axes).
@@ -33,6 +34,7 @@
  */
 static char UINPUT_DEVICE[PATH_MAX] = "/dev/uinput";
 static char UINPUT_DEVNAME[UINPUT_MAX_NAME_SIZE] = "udotool";
+static double UINPUT_DELAY_TIME = DEFAULT_DELAY_TIME;
 static double UINPUT_SETTLE_TIME = DEFAULT_SETTLE_TIME;
 static struct input_id UINPUT_ID = {
     .bustype = BUS_VIRTUAL,
@@ -119,6 +121,20 @@ int uinput_set_option(int option, const char *value) {
             UINPUT_ID.version = uval;
         }
         break;
+    case UINPUT_OPT_DELAY:
+        {
+            double dval;
+            const char *ep = NULL;
+
+            dval = strtod(value, (char **)&ep);
+            if (ep == value || *ep != '\0' ||
+                dval < MIN_SLEEP_SEC || dval > MAX_SLEEP_SEC) {
+                log_message(-1, "UINPUT: error parsing default delay time: %s", value);
+                return -1;
+            }
+            UINPUT_DELAY_TIME = dval;
+        }
+        break;
     case UINPUT_OPT_SETTLE:
         {
             double dval;
@@ -168,6 +184,22 @@ int uinput_set_option(int option, const char *value) {
 }
 
 /**
+ * Format time in seconds.
+ */
+static int format_time(const char *opt, double dval, char *buffer, size_t bufsize) {
+    if (dval < MIN_SLEEP_SEC || dval > MAX_SLEEP_SEC) {
+        log_message(-1, "UINPUT: error using %s: %.6f", opt, dval);
+        return -1;
+    }
+    int len = snprintf(buffer, bufsize, "%.6f", dval);
+    if (len < 0 || (size_t)len >= bufsize) {
+        log_message(-1, "UINPUT: buffer overflow formatting %s: %.6f", opt, dval);
+        return -1;
+    }
+    return 0;
+}
+
+/**
  * Get UINPUT option.
  *
  * @param option  option code.
@@ -192,19 +224,10 @@ int uinput_get_option(int option, char *buffer, size_t bufsize) {
             UINPUT_ID.vendor, UINPUT_ID.product, UINPUT_ID.version);
         pval = intbuf;
         break;
+    case UINPUT_OPT_DELAY:
+        return format_time("default key delay time", UINPUT_DELAY_TIME, buffer, bufsize);
     case UINPUT_OPT_SETTLE:
-        if (UINPUT_SETTLE_TIME < MIN_SLEEP_SEC || UINPUT_SETTLE_TIME > MAX_SLEEP_SEC) {
-            log_message(-1, "UINPUT: error using settle time: %.6f", UINPUT_SETTLE_TIME);
-            return -1;
-        }
-#pragma GCC diagnostic push
-#pragma clang diagnostic ignored "-Wunknown-warning-option"
-#pragma GCC diagnostic ignored "-Wformat-truncation"
-        // Truncation cannot happen, since we limit settle time to 86400 seconds or less
-        snprintf(intbuf, sizeof(intbuf), "%.6f", UINPUT_SETTLE_TIME);
-#pragma GCC diagnostic pop
-        pval = intbuf;
-        break;
+        return format_time("settle time", UINPUT_SETTLE_TIME, buffer, bufsize);
     case UINPUT_OPT_FLAGS:
         snprintf(intbuf, sizeof(intbuf), "0x%04X", UINPUT_FLAGS_MASK);
         pval = intbuf;

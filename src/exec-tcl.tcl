@@ -2,8 +2,6 @@
 #
 # Tcl macros
 #
-set ::udotool::default_delay 0.05
-
 proc ::internal::sysfile {name} {{extlist {glob.tcl nshelper.tcl oo.tcl stdlib.tcl tclcompat.tcl tree.tcl}}} {
     if {$name == [info script]} {return 1}
     return [lsearch -bool $extlist $name]
@@ -74,7 +72,7 @@ proc position {args} {
 proc key {args} {
     set rep_num   [::internal::getopt args -repeat 1 0]
     set rep_time  [::internal::getopt args -time   1 0]
-    set rep_delay [::internal::getopt args -delay  1 $::udotool::default_delay ]
+    set rep_delay [::internal::getopt args -delay  1 [udotool option delay_time]]
     set down_list [lmap key $args { list KEYDOWN $key }]
     set up_list   [lmap key [lreverse $args] { list KEYUP $key }]
     set key_list  [list {*}$down_list SYNC {*}$up_list]
