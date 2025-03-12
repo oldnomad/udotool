@@ -143,9 +143,12 @@ Documentation for Tcl language is available at <https://www.tcl-lang.org/>.
  If this command was not used, device is closed on exit.
 
 **udotool option** *optionName* [*value*]
-:   Get or set emulation option value. Option names are: **device**,
- **dev_name**, **dev_id**, **delay_time**, **settle_time**, and **quirks**.
- See command line options for their meaning.
+:   Get or set emulation option value. See section **Emulation options**
+ below for supported option names.
+
+**udotool runtime** *varName* [*value*]
+:   Get or set runtime variable. See section **Runtime variables** below
+ for supported variable names.
 
 **udotool sysname**
 :   Return virtual device directory name under **/sys/devices/virtual/input/**.
@@ -160,15 +163,38 @@ Documentation for Tcl language is available at <https://www.tcl-lang.org/>.
  arguments not as strings, but as Tcl lists, each containing an axis name
  and a value. This command can be used only in scripts.
 
-## Variables
+### Emulation options
 
-`udotool` sets several global Tcl variables.
+Emulation options control how device emulation is done. Most of them
+only matter when the device is open (either implicitly or with command
+`udotool open`). Option `delay_time` ifluences command `key` and acts
+on all commands following.
 
-- **::udotool::debug** contains debug verbosity level. Modifying this
-  variable may affect tracing Tcl commands, but has no effect on other
-  debug messages.
-- **::udotool::dry_run** is non-zero on dry run. Modifying this variable
-  has no effect.
+| Name          | Option / Environment variable           | Comment                 |
+|---------------|-----------------------------------------|-------------------------|
+| `device`      | `--dev` / `UDOTOOL_DEVICE_PATH`         | Path to UINPUT device.  |
+| `dev_name`    | `--dev-name` / `UDOTOOL_DEVICE_NAME`    | Emulated device name.   |
+| `dev_id`      | `--dev-id` / `UDOTOOL_DEVICE_ID`        | Emulated device ID.     |
+| `delay_time`  | `--delay-time`                          | Default key delay time. |
+| `settle_time` | `--settle-time` / `UDOTOOL_SETTLE_TIME` | Device settle time.     |
+| `quirks`      | `--quirks` / `UDOTOOL_QUIRKS`           | List of quirk flags.    |
+
+**NOTE**: Emulation option `quirks` is a list of quirk flags (with optional prefix)
+for the option and the environment variable, but in command `udotool option` it is
+an integer containing a bit mask.
+
+### Runtime variables
+
+Runtime variables change the way `udotool` executes commands. They can
+be set from command line with corresponding option, and inside a script
+they can be read or set with command `udotool runtime` (see above).
+
+| Name      | Option      | Comment
+| --------- | ----------- | --------------------------------------------------------------------------------
+| `dry_run` | `--dry-run` | Dry run mode. If non-zero, input emulation commands will be no-op.
+| `verbose` | `--verbose` | Verbosity level. Positive values increase amount of information commands report.
+
+**NOTE**: Runtime variable `dry_run` is read-only and cannot be changed in a script.
 
 # SCRIPTS
 

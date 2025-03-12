@@ -1,7 +1,9 @@
 udotool (2.4) UNRELEASED; urgency=medium
 
   * New low-level command `udotool option`.
-  * Removed most of Tcl variables in favor of `udotool option`.
+  * New low-level command `udotool runtime`.
+  * Removed all Tcl variables in favor of `udotool option` and `udotool runtime`.
+  * Command line option `--quirk` renamed to `--quirks` for consistency.
 
  -- Alec Kojaev <alec.kojaev@gmail.com>  Tue, 11 Mar 2025 02:03:30 +0300
 

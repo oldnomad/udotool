@@ -3,8 +3,20 @@
 # Tcl macros
 #
 proc ::internal::sysfile {name} {{extlist {glob.tcl nshelper.tcl oo.tcl stdlib.tcl tclcompat.tcl tree.tcl}}} {
-    if {$name == [info script]} {return 1}
+    if { $name == [info script] } { return 1 }
     return [lsearch -bool $extlist $name]
+}
+
+proc ::internal::logcmd {mode fname line result cmd arglist} {
+    set debug [udotool runtime verbose]
+    if { $debug < 1 } { return }
+    if { $mode != "cmd" } { return }
+    set level 1
+    if { [::internal::sysfile $fname] } {
+        if { $debug < 3 } { return }
+        set level 3
+    }
+    puts "\[$level\] \[$fname:$line\] $cmd $arglist"
 }
 
 proc ::internal::getopt {_argv opt {hasval 0} {defval "--"}} {
@@ -86,14 +98,4 @@ proc key {args} {
     }
 }
 
-if { $::udotool::debug > 0 } {
-    xtrace [lambda {mode fname line result cmd arglist} {
-        if { $mode != "cmd" } { return }
-        set level 1
-        if { [::internal::sysfile $fname] } {
-            if { $::udotool::debug < 3 } { return }
-            set level 3
-        }
-        puts "\[$level\] \[$fname:$line\] $cmd $arglist"
-    }]
-}
+xtrace ::internal::logcmd

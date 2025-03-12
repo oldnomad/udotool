@@ -93,23 +93,6 @@ void exec_print_version(const char *prefix) {
 }
 
 /**
- * Set Tcl variables reflecting run mode.
- *
- * @param interp  interpreter.
- */
-static int set_runtime_vars(Jim_Interp *interp) {
-    char buffer[32];
-    int ret;
-    snprintf(buffer, sizeof(buffer), "%d", CFG_VERBOSITY);
-    if ((ret = Jim_SetVariableStrWithStr(interp, "::udotool::debug", buffer)) != JIM_OK)
-        return ret;
-    snprintf(buffer, sizeof(buffer), "%d", CFG_DRY_RUN);
-    if ((ret = Jim_SetVariableStrWithStr(interp, "::udotool::dry_run", buffer)) != JIM_OK)
-        return ret;
-    return JIM_OK;
-}
-
-/**
  * Initialize Tcl interpreter.
  *
  * @return new Tcl interpreter.
@@ -137,10 +120,6 @@ static Jim_Interp *exec_init() {
             exec_deinit(interp, ret, NULL);
             return NULL;
         }
-    }
-    if ((ret = set_runtime_vars(interp)) != JIM_OK) {
-        exec_deinit(interp, ret, NULL);
-        return NULL;
     }
     if ((ret = Jim_EvalSource(interp, "exec-tcl.tcl", 1, PREEXEC_SCRIPT)) != JIM_OK) {
         exec_deinit(interp, ret, NULL);
@@ -351,12 +330,14 @@ static int exec_udotool(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
     static const char *const SUBCOMMANDS[] = {
         "open", "close", "input",
         "option", "sysname", "protocol",
+        "runtime",
         NULL
     };
     enum {
         // NOTE: Order should be the same as in `SUBCOMMANDS` above!
         SUBCMD_OPEN = 0, SUBCMD_CLOSE, SUBCMD_INPUT,
         SUBCMD_OPTION, SUBCMD_SYSNAME, SUBCMD_PROTOCOL,
+        SUBCMD_RUNTIME,
     };
     static const char *const OPTIONS[] = {
         "device", "dev_name", "dev_id",
@@ -372,16 +353,24 @@ static int exec_udotool(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
         UINPUT_OPT_SETTLE,
         UINPUT_OPT_FLAGS,
     };
+    static const char *const RUNVARS[] = {
+        "dry_run", "verbose",
+        NULL
+    };
+    enum {
+        // NOTE: Order should be the same as in `RUNVARS` above!
+        RUNVAR_DRY_RUN = 0, RUNVAR_VERBOSE,
+    };
 
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "subcommand ?args ...?");
         return JIM_ERR;
     }
-    int cmd = -1;
+    int cmd = -1, opt = -1;
     if (Jim_GetEnum(interp, argv[1], SUBCOMMANDS, &cmd, "subcommand", JIM_ERRMSG|JIM_ENUM_ABBREV) != JIM_OK)
         return Jim_CheckShowCommands(interp, argv[1], SUBCOMMANDS);
     switch (cmd) {
-    case SUBCMD_OPEN: // open
+    case SUBCMD_OPEN:
         if (argc != 2) {
             Jim_WrongNumArgs(interp, 2, argv, "");
             return JIM_ERR;
@@ -391,14 +380,14 @@ static int exec_udotool(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
             return JIM_ERR;
         }
         break;
-    case SUBCMD_CLOSE: // close
+    case SUBCMD_CLOSE:
         if (argc != 2) {
             Jim_WrongNumArgs(interp, 2, argv, "");
             return JIM_ERR;
         }
         uinput_close();
         break;
-    case SUBCMD_INPUT: // input (low-level)
+    case SUBCMD_INPUT:
         for (int n = 2; n < argc; n++) {
             int llen = Jim_ListLength(interp, argv[n]);
             if (llen == 0 || llen > 2) {
@@ -415,48 +404,83 @@ static int exec_udotool(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
             return JIM_ERR;
         }
         break;
-    case SUBCMD_OPTION: // option (both get & set)
+    case SUBCMD_OPTION:
         if (argc < 3 || argc > 4) {
             Jim_WrongNumArgs(interp, 2, argv, "optName ?value?");
             return JIM_ERR;
         }
-        {
-            int opt = -1;
-            if (Jim_GetEnum(interp, argv[2], OPTIONS, &opt, "optName", JIM_ERRMSG) != JIM_OK)
-                return Jim_CheckShowCommands(interp, argv[2], OPTIONS);
-            if (opt < 0 || opt >= (int)(sizeof(OPTION_CODES)/sizeof(OPTION_CODES[0]))) {
-                Jim_SetResultFormatted(interp, "unknown option number %d", opt);
+        if (Jim_GetEnum(interp, argv[2], OPTIONS, &opt, "optName", JIM_ERRMSG) != JIM_OK)
+            return Jim_CheckShowCommands(interp, argv[2], OPTIONS);
+        if (opt < 0 || opt >= (int)(sizeof(OPTION_CODES)/sizeof(OPTION_CODES[0]))) {
+            Jim_SetResultFormatted(interp, "unknown option number %d", opt);
+            return JIM_ERR;
+        }
+        opt = OPTION_CODES[opt];
+        if (argc == 3) {
+            char buffer[PATH_MAX];
+            if (uinput_get_option(opt, buffer, sizeof(buffer)) < 0) {
+                Jim_SetResultFormatted(interp, "error getting option \"%#s\"", argv[2]);
                 return JIM_ERR;
             }
-            opt = OPTION_CODES[opt];
-            if (argc == 3) {
-                char buffer[PATH_MAX];
-                if (uinput_get_option(opt, buffer, sizeof(buffer)) < 0) {
-                    Jim_SetResultFormatted(interp, "error getting option \"%#s\"", argv[2]);
-                    return JIM_ERR;
-                }
-                Jim_SetResultString(interp, buffer, -1);
-            } else {
-                if (uinput_set_option(opt, Jim_String(argv[3])) < 0) {
-                    Jim_SetResultFormatted(interp, "error setting option \"%#s\" to value \"%#s\"", argv[2], argv[3]);
-                    return JIM_ERR;
-                }
+            Jim_SetResultString(interp, buffer, -1);
+        } else {
+            if (uinput_set_option(opt, Jim_String(argv[3])) < 0) {
+                Jim_SetResultFormatted(interp, "error setting option \"%#s\" to value \"%#s\"", argv[2], argv[3]);
+                return JIM_ERR;
             }
         }
         break;
-    case SUBCMD_SYSNAME: // sysname
+    case SUBCMD_SYSNAME:
         if (argc != 2) {
             Jim_WrongNumArgs(interp, 2, argv, "");
             return JIM_ERR;
         }
         Jim_SetResultString(interp, uinput_get_sysname(), -1);
         break;
-    case SUBCMD_PROTOCOL: // protocol
+    case SUBCMD_PROTOCOL:
         if (argc != 2) {
             Jim_WrongNumArgs(interp, 2, argv, "");
             return JIM_ERR;
         }
         Jim_SetResultInt(interp, uinput_get_version());
+        break;
+    case SUBCMD_RUNTIME:
+        if (argc < 3 || argc > 4) {
+            Jim_WrongNumArgs(interp, 2, argv, "varName ?value?");
+            return JIM_ERR;
+        }
+        if (Jim_GetEnum(interp, argv[2], RUNVARS, &opt, "varName", JIM_ERRMSG) != JIM_OK)
+            return Jim_CheckShowCommands(interp, argv[2], RUNVARS);
+        if (argc == 3) {
+            switch (opt) {
+            case RUNVAR_DRY_RUN:
+                Jim_SetResultInt(interp, CFG_DRY_RUN);
+                break;
+            case RUNVAR_VERBOSE:
+                Jim_SetResultInt(interp, CFG_VERBOSITY);
+                break;
+            default:
+                Jim_SetResultFormatted(interp, "unknown runtime variable \"%#s\" to get", argv[2]);
+                return JIM_ERR;
+            }
+        } else {
+            int ret;
+            jim_wide ival = 0;
+            switch (opt) {
+            case RUNVAR_VERBOSE:
+                if ((ret = Jim_GetWide(interp, argv[3], &ival)) != JIM_OK)
+                    return ret;
+                if (ival < 0 || ival > INT_MAX) {
+                    Jim_SetResultFormatted(interp, "invalid value for runtime variable \"%#s\": \"%#s\"", argv[2], argv[3]);
+                    return JIM_ERR;
+                }
+                CFG_VERBOSITY = (int)ival;
+                break;
+            default:
+                Jim_SetResultFormatted(interp, "unknown runtime variable \"%#s\" to set", argv[2]);
+                return JIM_ERR;
+            }
+        }
         break;
     }
     return JIM_OK;
