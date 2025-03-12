@@ -37,5 +37,5 @@ the source say that this is for "VMware USB mouse", whatever that may be).
 
 Nevertheless, I can envision a situation where a user might want to enable
 these buttons, even if this means losing `libinput` compatibility. It can
-be done by disabling quirk flag `libinput` (see option `--quirk` and
+be done by disabling quirk flag `libinput` (see option `--quirks` and
 environment variable `UDOTOOL_QUIRKS`).

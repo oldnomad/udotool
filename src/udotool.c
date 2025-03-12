@@ -50,7 +50,7 @@ static const char USAGE_NOTICE[] = "Usage: %s [<option>...] <subcommand>...\n\n"
                                    "        Use specified emulated device name.\n"
                                    "    --dev-id <vendor-id>:<product-id>[:<version>]\n"
                                    "        Use specified emulated device ID.\n"
-                                   "    --quirk [+|-]<name>,...\n"
+                                   "    --quirks [+|-]<name>,...\n"
                                    "        Set or unset specified emulation quirks.\n"
                                    "    -v, --verbose\n"
                                    "        Increase command verbosity.\n"
@@ -75,7 +75,7 @@ static const struct option LONG_OPTION[] = {
     { "dev",         required_argument, NULL, UINPUT_OPT_OFFSET + UINPUT_OPT_DEVICE  },
     { "dev-name",    required_argument, NULL, UINPUT_OPT_OFFSET + UINPUT_OPT_DEVNAME },
     { "dev-id",      required_argument, NULL, UINPUT_OPT_OFFSET + UINPUT_OPT_DEVID   },
-    { "quirk",       required_argument, NULL, UINPUT_OPT_OFFSET + UINPUT_OPT_FLAGS   },
+    { "quirks",      required_argument, NULL, UINPUT_OPT_OFFSET + UINPUT_OPT_FLAGS   },
     { NULL }
 };
 

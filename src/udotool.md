@@ -52,7 +52,7 @@ starting with two dashes ('-'). A summary of options is included below.
 **\-\-dev-id** _vendor-id_[**:**_product-id_[**:**_version_]]
 :   Use specified emulated device ID. Default is **0x0000:0x0000:0**.
 
-**\-\-quirk** [+|-]_name_,...
+**\-\-quirks** [+|-]_name_,...
 :   Set on or off emulation quirk flags. Default is **+libinput**. See section
  **QUIRK FLAGS** below for a list of known quirk flags.
 

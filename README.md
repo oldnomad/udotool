@@ -58,7 +58,7 @@ make package
 ## Emulation quirks
 
 Some details of input emulation are controlled by flags called "quirks".
-They can be switched on or off by specifying command line option `--quirk`,
+They can be switched on or off by specifying command line option `--quirks`,
 or by setting environment variable `UDOTOOL_QUIRKS`.
 
 Following quirks are defined at the moment:
