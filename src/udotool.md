@@ -167,8 +167,8 @@ Documentation for Tcl language is available at <https://www.tcl-lang.org/>.
 
 Emulation options control how device emulation is done. Most of them
 only matter when the device is open (either implicitly or with command
-`udotool open`). Option `delay_time` ifluences command `key` and acts
-on all commands following.
+`udotool open`). Option `delay_time` influences command `key` and acts
+on all following commands.
 
 | Name          | Option / Environment variable           | Comment                 |
 |---------------|-----------------------------------------|-------------------------|
@@ -189,10 +189,12 @@ Runtime variables change the way `udotool` executes commands. They can
 be set from command line with corresponding option, and inside a script
 they can be read or set with command `udotool runtime` (see above).
 
-| Name      | Option      | Comment
-| --------- | ----------- | --------------------------------------------------------------------------------
-| `dry_run` | `--dry-run` | Dry run mode. If non-zero, input emulation commands will be no-op.
-| `verbose` | `--verbose` | Verbosity level. Positive values increase amount of information commands report.
+| Name      | Option      | Comment                                    |
+| --------- | ----------- | -------------------------------------------|
+| `dry_run` | `--dry-run` | Dry run mode. If non-zero, input emulation |
+|           |             | commands will be no-op.                    |
+| `verbose` | `--verbose` | Verbosity level. Positive values increase  |
+|           |             | amount of information commands report.     |
 
 **NOTE**: Runtime variable `dry_run` is read-only and cannot be changed in a script.
 
