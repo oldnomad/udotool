@@ -4,6 +4,7 @@
  *
  * Copyright (c) 2024 Alec Kojaev
  */
+#include <ctype.h>
 #include <errno.h>
 #include <limits.h>
 #include <string.h>
@@ -20,7 +21,6 @@ static int         exec_deinit(Jim_Interp *interp, int err, const char *prefix);
 
 static int exec_udotool  (Jim_Interp *interp, int argc, Jim_Obj *const*argv);
 static int exec_timedloop(Jim_Interp *interp, int argc, Jim_Obj *const*argv);
-static int exec_names    (Jim_Interp *interp, int argc, Jim_Obj *const*argv);
 static int exec_sleep    (Jim_Interp *interp, int argc, Jim_Obj *const*argv);
 
 /**
@@ -33,7 +33,6 @@ static const struct exec_cmd {
 } COMMANDS[] = {
     { "udotool",   exec_udotool,   NULL },
     { "timedloop", exec_timedloop, NULL },
-    { "names",     exec_names,     NULL },
     { "sleep",     exec_sleep,     ""   },
     { NULL }
 };
@@ -82,6 +81,25 @@ int exec_file(const char *filename) {
     else
         ret = Jim_EvalFile(interp, filename);
     return exec_deinit(interp, ret, NULL);
+}
+
+int exec_print_names(const char *topic) {
+    Jim_Interp *interp = exec_init();
+    if (interp == NULL)
+        return -1;
+    for (const char *s = topic; *s != '\0'; s++)
+        if (!isalnum(*s)) {
+            log_message(-1, "invalid characters in topic: \"%s\"", topic);
+            return -1;
+        }
+    char *cmd = NULL;
+    if (asprintf(&cmd, "udotool names {%s}", topic) < 0) {
+        log_message(-1, "failed to allocate memory for topic: \"%s\"", topic);
+        return -1;
+    }
+    int ret = Jim_Eval(interp, cmd);
+    free(cmd);
+    return exec_deinit(interp, ret, topic);
 }
 
 void exec_print_version(const char *prefix) {
@@ -331,6 +349,7 @@ static int exec_udotool(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
         "open", "close", "input",
         "option", "sysname", "protocol",
         "runtime",
+        "names",
         NULL
     };
     enum {
@@ -338,6 +357,7 @@ static int exec_udotool(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
         SUBCMD_OPEN = 0, SUBCMD_CLOSE, SUBCMD_INPUT,
         SUBCMD_OPTION, SUBCMD_SYSNAME, SUBCMD_PROTOCOL,
         SUBCMD_RUNTIME,
+        SUBCMD_NAMES,
     };
     static const char *const OPTIONS[] = {
         "device", "dev_name", "dev_id",
@@ -361,12 +381,21 @@ static int exec_udotool(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
         // NOTE: Order should be the same as in `RUNVARS` above!
         RUNVAR_DRY_RUN = 0, RUNVAR_VERBOSE,
     };
+    static const char *const NAMES[] = {
+        "axis", "key",
+        NULL
+    };
+    enum {
+        // NOTE: Order should be the same as in `NAMES` above!
+        NAMES_AXIS, NAMES_KEY,
+    };
 
     if (argc < 2) {
         Jim_WrongNumArgs(interp, 1, argv, "subcommand ?args ...?");
         return JIM_ERR;
     }
     int cmd = -1, opt = -1;
+    Jim_Obj *result = NULL;
     if (Jim_GetEnum(interp, argv[1], SUBCOMMANDS, &cmd, "subcommand", JIM_ERRMSG|JIM_ENUM_ABBREV) != JIM_OK)
         return Jim_CheckShowCommands(interp, argv[1], SUBCOMMANDS);
     switch (cmd) {
@@ -482,6 +511,44 @@ static int exec_udotool(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
             }
         }
         break;
+    case SUBCMD_NAMES:
+        if (argc != 3) {
+            Jim_WrongNumArgs(interp, 2, argv, "topic");
+            return JIM_ERR;
+        }
+        if (Jim_GetEnum(interp, argv[2], NAMES, &opt, "topic", JIM_ERRMSG) != JIM_OK)
+            return Jim_CheckShowCommands(interp, argv[2], NAMES);
+        switch (opt) {
+        case NAMES_AXIS:
+            result = Jim_NewListObj(interp, NULL, 0);
+            for (const struct udotool_obj_id *axis = UINPUT_REL_AXES; axis->name != NULL; axis++) {
+                Jim_Obj *elem = Jim_NewListObj(interp, NULL, 0);
+                Jim_ListAppendElement(interp, elem, Jim_NewStringObj(interp, axis->name, -1));
+                Jim_ListAppendElement(interp, elem, Jim_NewIntObj(interp, axis->value));
+                Jim_ListAppendElement(interp, result, elem);
+            }
+            for (const struct udotool_obj_id *axis = UINPUT_ABS_AXES; axis->name != NULL; axis++) {
+                Jim_Obj *elem = Jim_NewListObj(interp, NULL, 0);
+                Jim_ListAppendElement(interp, elem, Jim_NewStringObj(interp, axis->name, -1));
+                Jim_ListAppendElement(interp, elem, Jim_NewIntObj(interp, axis->value));
+                Jim_ListAppendElement(interp, result, elem);
+            }
+            break;
+        case NAMES_KEY:
+            result = Jim_NewListObj(interp, NULL, 0);
+            for (const struct udotool_obj_id *key = UINPUT_KEYS; key->name != NULL; key++) {
+                Jim_Obj *elem = Jim_NewListObj(interp, NULL, 0);
+                Jim_ListAppendElement(interp, elem, Jim_NewStringObj(interp, key->name, -1));
+                Jim_ListAppendElement(interp, elem, Jim_NewIntObj(interp, key->value));
+                Jim_ListAppendElement(interp, result, elem);
+            }
+            break;
+        default:
+            Jim_SetResultFormatted(interp, "unknown topic \"%#s\" to set", argv[2]);
+            return JIM_ERR;
+        }
+        Jim_SetResult(interp, result);
+        break;
     }
     return JIM_OK;
 }
@@ -561,49 +628,6 @@ static int exec_timedloop(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
     if (var_num != NULL)
         Jim_UnsetVariable(interp, var_num, 0);
     return ret;
-}
-
-/**
- * Tcl command: names.
- */
-static int exec_names(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
-    static const char *const commands[] = { "axis", "key", NULL };
-    if (argc != 2) {
-        Jim_WrongNumArgs(interp, argc, argv, "subcommand ?args ...?");
-        return JIM_ERR;
-    }
-    int cmd = 0;
-    if (Jim_GetEnum(interp, argv[1], commands, &cmd, "subcommand", JIM_ERRMSG|JIM_ENUM_ABBREV) != JIM_OK)
-        return Jim_CheckShowCommands(interp, argv[1], commands);
-    Jim_Obj *result = NULL;
-    switch (cmd) {
-    case 0: // Axis names
-        result = Jim_NewListObj(interp, NULL, 0);
-        for (const struct udotool_obj_id *axis = UINPUT_REL_AXES; axis->name != NULL; axis++) {
-            Jim_Obj *elem = Jim_NewListObj(interp, NULL, 0);
-            Jim_ListAppendElement(interp, elem, Jim_NewStringObj(interp, axis->name, -1));
-            Jim_ListAppendElement(interp, elem, Jim_NewIntObj(interp, axis->value));
-            Jim_ListAppendElement(interp, result, elem);
-        }
-        for (const struct udotool_obj_id *axis = UINPUT_ABS_AXES; axis->name != NULL; axis++) {
-            Jim_Obj *elem = Jim_NewListObj(interp, NULL, 0);
-            Jim_ListAppendElement(interp, elem, Jim_NewStringObj(interp, axis->name, -1));
-            Jim_ListAppendElement(interp, elem, Jim_NewIntObj(interp, axis->value));
-            Jim_ListAppendElement(interp, result, elem);
-        }
-        break;
-    case 1: // Key/button names
-        result = Jim_NewListObj(interp, NULL, 0);
-        for (const struct udotool_obj_id *key = UINPUT_KEYS; key->name != NULL; key++) {
-            Jim_Obj *elem = Jim_NewListObj(interp, NULL, 0);
-            Jim_ListAppendElement(interp, elem, Jim_NewStringObj(interp, key->name, -1));
-            Jim_ListAppendElement(interp, elem, Jim_NewIntObj(interp, key->value));
-            Jim_ListAppendElement(interp, result, elem);
-        }
-        break;
-    }
-    Jim_SetResult(interp, result);
-    return JIM_OK;
 }
 
 /**

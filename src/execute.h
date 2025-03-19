@@ -24,6 +24,14 @@ int exec_args(int argc, const char *const*argv);
 int exec_file(const char *filename);
 
 /**
+ * Print names for specified topic.
+ *
+ * @param topic  topic to print names for.
+ * @return       exit code.
+ */
+int exec_print_names(const char *topic);
+
+/**
  * Print executor version number.
  *
  * @param prefix  prefix to print before the version.

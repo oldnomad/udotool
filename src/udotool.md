@@ -12,7 +12,7 @@ udotool - emulate input events
 
 **udotool** [_options_] {**-i** | **\-\-input**} [_file_]
 
-**udotool** [{**-h** | *\-\-help**} | {**-V** | **\-\-version**}]
+**udotool** {**-L** _topic_ | **\-\-list-names** _topic_} | {**-h** | **\-\-help**} | {**-V** | **\-\-version**}
 
 # DESCRIPTION
 
@@ -59,6 +59,10 @@ starting with two dashes ('-'). A summary of options is included below.
 **-v**, **\-\-verbose**
 :   Print more debug messages. Adding multiple **-v** will increase the verbosity.
 
+**-L** _topic_, **\-\-list-names** _topic_
+:   Print list of known names for topic and exit.
+ Available topics are **"axis"** and **"key"**.
+
 **-h**, **\-\-help**
 :   Show summary of options and exit.
 
@@ -74,11 +78,6 @@ Documentation for Tcl language is available at <https://www.tcl-lang.org/>.
 `udotool` extends the language with commands listed below.
 
 ## Generic commands
-
-**names** _topic_
-:   Return a list of all known axes (for topic "axis") or keys
- (for topic "key"). Each element of the list is a pair of a name
- and a code.
 
 **timedloop** _seconds_ [_num_] [_vartime_] [_varnum_] _body_
 :   Execute _body_ for at least _seconds_ time, but no more than
@@ -163,6 +162,11 @@ Documentation for Tcl language is available at <https://www.tcl-lang.org/>.
  arguments not as strings, but as Tcl lists, each containing an axis name
  and a value. This command can be used only in scripts.
 
+**udotool names** _topic_
+:   Return a list of all known axes (for topic "axis") or keys
+ (for topic "key"). Each element of the list is a pair of a name
+ and a code.
+
 ### Emulation options
 
 Emulation options control how device emulation is done. Most of them
@@ -234,7 +238,7 @@ Values for various axes are specified in abstract "units":
 # AXIS NAMES
 
 Full list of supported axis names can be retrieved using command
-**names axis**.
+**udotool names axis**.
 
 Following axis names are supported at the moment:
 
@@ -269,7 +273,7 @@ to determine which axes it uses.
 # KEY NAMES
 
 Full list of supported key names can be retrieved using command
-**names key**. **WARNING**: The list is huge!
+**udotool names key**. **WARNING**: The list is huge!
 
 If the key you want to emulate is not in the list, you can specify
 it as a number.

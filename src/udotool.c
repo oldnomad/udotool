@@ -55,6 +55,9 @@ static const char USAGE_NOTICE[] = "Usage: %s [<option>...] <subcommand>...\n\n"
                                    "    -v, --verbose\n"
                                    "        Increase command verbosity.\n"
                                    "        This option can be specified multiple times.\n"
+                                   "    -L <topic>, --list-names <topic>\n"
+                                   "        Print list of known names for topic and exit.\n"
+                                   "        Available topics are \"axis\" and \"key\".\n"
                                    "    -h, --help\n"
                                    "        Print this notice and exit.\n"
                                    "    -V, --version\n"
@@ -63,11 +66,12 @@ static const char USAGE_NOTICE[] = "Usage: %s [<option>...] <subcommand>...\n\n"
 /**
  * Command line options.
  */
-static const char SHORT_OPTION[] = "+i:nvhV";
+static const char SHORT_OPTION[] = "+i:nvL:hV";
 static const struct option LONG_OPTION[] = {
     { "input",       optional_argument, NULL, 'i' },
     { "dry-run",     no_argument,       NULL, 'n' },
     { "verbose",     no_argument,       NULL, 'v' },
+    { "list-names",  required_argument, NULL, 'L' },
     { "help",        no_argument,       NULL, 'h' },
     { "version",     no_argument,       NULL, 'V' },
     { "delay-time",  required_argument, NULL, UINPUT_OPT_OFFSET + UINPUT_OPT_DELAY   },
@@ -150,6 +154,8 @@ int main(int argc, char *const argv[]) {
         case 'v':
             ++CFG_VERBOSITY;
             break;
+        case 'L':
+            return exec_print_names(optarg) == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
         case 'h':
             printf(USAGE_NOTICE, argv[0]);
             return EXIT_SUCCESS;
