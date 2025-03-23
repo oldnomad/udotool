@@ -9,7 +9,7 @@ timedloop 10.1 10 t n {
   # Move to south-east and double-click
   move 24 24
   key -repeat 2 BTN_LEFT
-  if { [rand 10] == 5 } { puts "Random break!"; break }
+  if { [rand 30] == 5 } { puts "Random break!"; break }
   sleep 0.5
   # Move to north-west and double-click
   move -24 -24

@@ -1,3 +1,9 @@
+udotool (2.5) UNRELEASED; urgency=medium
+
+  * Make timed operations more robust by using `CLOCK_MONOTONIC`.
+
+ -- Alec Kojaev <alec.kojaev@gmail.com>  Sun, 23 Mar 2025 23:10:14 +0300
+
 udotool (2.4) unstable; urgency=medium
 
   * New low-level command `udotool option`.

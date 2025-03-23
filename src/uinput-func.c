@@ -415,7 +415,7 @@ int uinput_open(void) {
     tval.tv_sec = (time_t)UINPUT_SETTLE_TIME;
     tval.tv_nsec = (long)(NSEC_PER_SEC * (UINPUT_SETTLE_TIME - tval.tv_sec));
     log_message(2, "UINPUT: sleeping for %ld seconds and %ld nanoseconds", (long)tval.tv_sec, tval.tv_nsec);
-    if (nanosleep(&tval, NULL) < 0)
+    if (clock_nanosleep(CLOCK_MONOTONIC, 0, &tval, NULL) < 0)
         log_message(-1, "UINPUT: error while sleeping: %s", strerror(errno));
 
     return 0;

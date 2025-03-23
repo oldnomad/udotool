@@ -259,16 +259,23 @@ static int parse_rel_value(Jim_Interp *interp, Jim_Obj *obj, double *pval) {
 }
 
 /**
- * Get time.
+ * Get time and, optionally, calculate offset from previous time.
  *
  * @param interp  interpreter.
- * @param tv      pointer to buffer for time value.
+ * @param tsp     pointer to buffer for time value.
+ * @param ts0     pointer to previous time value, or null.
+ * @param pdelta  pointer to buffer for time delta, or null.
  * @return        error code.
  */
-static int get_time(Jim_Interp *interp, struct timeval *tv) {
-    if (gettimeofday(tv, NULL) < 0) {
+static int get_time_delta(Jim_Interp *interp, struct timespec *tsp,
+                          const struct timespec *ts0, double *pdelta) {
+    if (clock_gettime(CLOCK_MONOTONIC, tsp) < 0) {
         Jim_SetResultFormatted(interp, "cannot get current time: %s", strerror(errno));
         return JIM_ERR;
+    }
+    if (ts0 != NULL && pdelta != NULL) {
+        *pdelta = tsp->tv_sec - ts0->tv_sec;
+        *pdelta += (tsp->tv_nsec - ts0->tv_nsec) / (double)NSEC_PER_SEC;
     }
     return JIM_OK;
 }
@@ -588,25 +595,17 @@ static int exec_timedloop(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
             var_num = NULL;
     }
 
-    struct timeval start_ts, end_ts;
-    if ((ret = get_time(interp, &start_ts)) != JIM_OK)
+    struct timespec start_ts;
+    if ((ret = get_time_delta(interp, &start_ts, NULL, NULL)) != JIM_OK)
         return ret;
-    timerclear(&end_ts);
-    if (rep_time != 0) {
-        end_ts.tv_sec = (time_t)rep_time;
-        end_ts.tv_usec = (suseconds_t)(USEC_PER_SEC * (rep_time - end_ts.tv_sec));
-        timeradd(&start_ts, &end_ts, &end_ts);
-    }
     for (jim_wide rep = 0; rep_num < 0 || rep < rep_num; rep++) {
         double iter_time = 0;
         if (rep > 0) {
-            struct timeval curr_ts;
-            if ((ret = get_time(interp, &curr_ts)) != JIM_OK)
+            struct timespec curr_ts;
+            if ((ret = get_time_delta(interp, &curr_ts, &start_ts, &iter_time)) != JIM_OK)
                 return ret;
-            if (timerisset(&end_ts) && !timercmp(&curr_ts, &end_ts, <))
+            if (rep_time != 0 && iter_time >= rep_time)
                 break;
-            timersub(&curr_ts, &start_ts, &curr_ts);
-            iter_time = curr_ts.tv_sec + ((double)curr_ts.tv_usec)/USEC_PER_SEC;
         }
         if (var_time != NULL) {
             Jim_Obj *expr_time = Jim_NewDoubleObj(interp, iter_time);
@@ -646,7 +645,7 @@ static int exec_sleep(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
     memset(&tval, 0, sizeof(tval));
     tval.tv_sec = (time_t)delay;
     tval.tv_nsec = (long)((delay - tval.tv_sec)*NSEC_PER_SEC);
-    while (nanosleep(&tval, &tval) != 0) {
+    while (clock_nanosleep(CLOCK_MONOTONIC, 0, &tval, &tval) != 0) {
         if (errno != EINTR) {
             Jim_SetResultFormatted(interp, "error when sleeping: %s", strerror(errno));
             return JIM_ERR;
