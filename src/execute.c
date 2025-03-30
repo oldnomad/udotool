@@ -598,8 +598,9 @@ static int exec_timedloop(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
     struct timespec start_ts;
     if ((ret = get_time_delta(interp, &start_ts, NULL, NULL)) != JIM_OK)
         return ret;
-    for (jim_wide rep = 0; rep_num < 0 || rep < rep_num; rep++) {
-        double iter_time = 0;
+    jim_wide rep = 0;
+    double iter_time = 0;
+    for (rep = 0; rep_num < 0 || rep < rep_num; rep++) {
         if (rep > 0) {
             struct timespec curr_ts;
             if ((ret = get_time_delta(interp, &curr_ts, &start_ts, &iter_time)) != JIM_OK)
@@ -622,6 +623,7 @@ static int exec_timedloop(Jim_Interp *interp, int argc, Jim_Obj *const*argv) {
             break;
         ret = JIM_OK;
     }
+    log_message(1, "timedloop: performed %lld iterations in %.6f seconds", (long long)rep, iter_time);
     if (var_time != NULL)
         Jim_UnsetVariable(interp, var_time, 0);
     if (var_num != NULL)
