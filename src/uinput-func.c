@@ -73,6 +73,10 @@ static unsigned UINPUT_PROTOCOL_VERSION = 0;
 int uinput_set_option(int option, const char *value) {
     size_t len;
 
+    if (value == NULL) {
+        log_message(-1, "UINPUT: null value for option code %d", option);
+        return -1;
+    }
     switch (option) {
     case UINPUT_OPT_DEVICE:
         len = strlen(value);
@@ -371,6 +375,7 @@ static int uinput_setup(int fd) {
     memset(&setup, 0, sizeof(setup));
     setup.id = UINPUT_ID;
     strncpy(setup.name, UINPUT_DEVNAME, UINPUT_MAX_NAME_SIZE);
+    setup.name[UINPUT_MAX_NAME_SIZE - 1] = '\0';
     if (uinput_ioctl_ptr(fd, "UI_DEV_SETUP", UI_DEV_SETUP, &setup) < 0)
         return -1;
 

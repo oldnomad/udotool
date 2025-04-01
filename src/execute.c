@@ -87,6 +87,10 @@ int exec_print_names(const char *topic) {
     Jim_Interp *interp = exec_init();
     if (interp == NULL)
         return -1;
+    if (topic == NULL) {
+        log_message(-1, "no topic");
+        return -1;
+    }
     for (const char *s = topic; *s != '\0'; s++)
         if (!isalnum(*s)) {
             log_message(-1, "invalid characters in topic: \"%s\"", topic);
