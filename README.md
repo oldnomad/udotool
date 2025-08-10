@@ -31,7 +31,7 @@ Build-time dependencies are:
 
 - `gcc(1)`, `glibc(7)`, `make(1)`, `install(1)`, and some common POSIX
   commands are used in the build process.
-- `xxd(1)` is needed for building.
+- `grep(1)`, `sed(1)`, and `xxd(1)` are needed for building.
 - `pandoc(1)` is needed for building the manpage.
 - Package `debhelper` is needed to build a Debian package.
 - `git(1)` and `envsubst(1)` (package `gettext-base` in Debian) are used to

@@ -3,6 +3,11 @@ PANDOC    = /usr/bin/pandoc
 GIT       = /usr/bin/git
 ENVSUBST  = /usr/bin/envsubst
 XXD       = /usr/bin/xxd
+GREP      = /usr/bin/grep
+SED       = /usr/bin/sed
+
+# This detects full path to <linux/input-event-codes.h>
+KEYS_HDR  = $(shell $(CC) -H -fsyntax-only uinput-func.c 2>&1 1>/dev/null | grep -P '\.+ .*/linux/input-event-codes\.h' | grep -o -P '(?<= )/.*\.h')
 
 IS_CLANG  = $(findstring clang,$(shell $(CC) --version))
 
@@ -20,7 +25,7 @@ endif
 LDLIBS   += -ljim
 
 SRC_FILES  = $(wildcard *.c)
-GEN_FILES  = config.h exec-tcl.h
+GEN_FILES  = config.h exec-tcl.h uinput-table-keys.h
 HDR_FILES  = $(wildcard *.h) $(GEN_FILES)
 OBJ_FILES  = $(patsubst %.c,%.o,$(SRC_FILES))
 EXE_FILE   = udotool
@@ -38,6 +43,9 @@ config.h: config.h.template ../.git/HEAD
 
 exec-tcl.h: exec-tcl.tcl
 	$(XXD) -i <$< >$@
+
+uinput-table-keys.h: $(KEYS_HDR)
+	$(GREP) -o -P '(?<=^#define )(BTN|KEY)_\w+(?=\s+)' $(KEYS_HDR) | $(GREP) -v -F -e KEY_RESERVED -e KEY_MIN_INTERESTING -e KEY_MAX -e KEY_CNT | $(SED) 's/^.*$$/    DEF_KEY(&),/' >$@
 
 .SUFFIXES: .md .man
 

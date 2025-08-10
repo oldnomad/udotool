@@ -1,6 +1,9 @@
 udotool (2.5) UNRELEASED; urgency=medium
 
   * Make timed operations more robust by using `CLOCK_MONOTONIC`.
+  * Improve debug output for `timedloop`.
+  * Fixes for minor defects found by Coverity.
+  * Generate list of key/button names at compile time.
 
  -- Alec Kojaev <alec.kojaev@gmail.com>  Sun, 23 Mar 2025 23:10:14 +0300
 

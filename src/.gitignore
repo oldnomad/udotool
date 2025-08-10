@@ -1,5 +1,6 @@
 config.h
 exec-tcl.h
+uinput-table-keys.h
 *.o
 udotool
 *.man

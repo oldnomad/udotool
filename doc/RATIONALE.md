@@ -11,10 +11,10 @@ virtual input device (`/dev/uinput`). This allows me to implement a
 universal solution that works not only in X11 and Wayland, but even in
 console.
 
-On the other side, this solution has certain drawbacks:
+However, this solution has certain drawbacks:
 
 - It's impossible to implement `xdotool` features related to window
-  manager functions, such as sending keystrokes to specific window.
+  manager functions, such as sending keystrokes to a specific window.
 - It's impossible to implement `xdotool` features that depend on
   keyboard layout, such as command `type`.
 - It's difficult to implement `xdotool` features that require getting
@@ -27,10 +27,9 @@ of complex input. On the other hand, `udev`/`libinput` is the most common
 environment in which this tool will be used, so I'll need to adapt to
 its behavior.
 
-Quirk flag `libinput` quirk seems like a good compromise: we sacrifice
-some flexibility by refusing to implement 16 digitizer tools, and for
-that we get correct behavior of `libinput` without writing a custom
-`udev` rule.
+Quirk flag `libinput` seems like a good compromise: we sacrifice some
+flexibility by refusing to implement 16 digitizer tools, and for that
+we get correct behavior of `libinput` without writing a custom `udev` rule.
 
 ## Why Jim Tcl?
 

@@ -8,6 +8,8 @@ Build-Depends:
  linux-libc-dev (>= 4.5),
  libjim-dev (>= 0.81),
  xxd,
+ grep,
+ sed,
  pandoc,
  git,
  gettext-base,
