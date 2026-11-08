@@ -45,7 +45,10 @@ exec-tcl.h: exec-tcl.tcl
 	$(XXD) -i <$< >$@
 
 uinput-table-keys.h: $(KEYS_HDR)
-	$(GREP) -o -P '(?<=^#define )(BTN|KEY)_\w+(?=\s+)' $(KEYS_HDR) | $(GREP) -v -F -e KEY_RESERVED -e KEY_MIN_INTERESTING -e KEY_MAX -e KEY_CNT | $(SED) 's/^.*$$/    DEF_KEY(&),/' >$@
+	$(SED) -nE 's/^#define[[:space:]]+((KEY_|BTN_)[[:alnum:]_]+).*/\1/p' <$(KEYS_HDR) |\
+		$(GREP) -vxF -e KEY_RESERVED -e KEY_MIN_INTERESTING -e KEY_MAX -e KEY_CNT |\
+		$(SED) 's/^.*$$/    DEF_KEY(&),/' >$@
+#	$(GREP) -o -P '(?<=^#define )(BTN|KEY)_\w+(?=\s+)' $(KEYS_HDR) | $(GREP) -v -F -e KEY_RESERVED -e KEY_MIN_INTERESTING -e KEY_MAX -e KEY_CNT | $(SED) 's/^.*$$/    DEF_KEY(&),/' >$@
 
 .SUFFIXES: .md .man
 
